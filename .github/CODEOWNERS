@@ -1,0 +1,4 @@
+/contracts/ @pms-api-owners @pms-security-owners
+/src/modules/identity-access/ @pms-security-owners
+/src/modules/profit-calculation/ @pms-calculation-owners
+/database/ @pms-database-owners

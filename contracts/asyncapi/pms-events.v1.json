@@ -1,0 +1,120 @@
+{
+  "asyncapi": "3.0.0",
+  "info": {
+    "title": "PMS Backend Events",
+    "version": "1.2.0",
+    "description": "Contrat des événements durables publiés par pms-backend."
+  },
+  "defaultContentType": "application/json",
+  "channels": {
+    "calculationRequested": {
+      "address": "pms.calculation.requested.v1",
+      "messages": { "event": { "$ref": "#/components/messages/CalculationRequested" } }
+    },
+    "cbsBatchReceived": {
+      "address": "pms.cbs.batch.received.v1",
+      "messages": { "event": { "$ref": "#/components/messages/CbsBatchReceived" } }
+    },
+    "closingRequested": {
+      "address": "pms.closing.requested.v1",
+      "messages": { "event": { "$ref": "#/components/messages/ClosingRequested" } }
+    },
+    "documentArchiveRequested": {
+      "address": "pms.document.archive-requested.v1",
+      "messages": { "event": { "$ref": "#/components/messages/DocumentArchiveRequested" } }
+    }
+  },
+  "operations": {
+    "publishCalculationRequested": { "action": "send", "channel": { "$ref": "#/channels/calculationRequested" } },
+    "publishCbsBatchReceived": { "action": "send", "channel": { "$ref": "#/channels/cbsBatchReceived" } },
+    "publishClosingRequested": { "action": "send", "channel": { "$ref": "#/channels/closingRequested" } },
+    "publishDocumentArchiveRequested": { "action": "send", "channel": { "$ref": "#/channels/documentArchiveRequested" } }
+  },
+  "components": {
+    "messages": {
+      "CalculationRequested": {
+        "name": "CalculationRequested",
+        "messageId": "pms.calculation.requested.v1",
+        "headers": { "$ref": "#/components/schemas/EventHeaders" },
+        "payload": {
+          "type": "object",
+          "required": ["runId", "poolId", "businessDate", "rulesVersion"],
+          "properties": {
+            "runId": { "type": "string", "format": "uuid" },
+            "poolId": { "type": "string" },
+            "businessDate": { "type": "string", "format": "date" },
+            "rulesVersion": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "CbsBatchReceived": {
+        "name": "CbsBatchReceived",
+        "messageId": "pms.cbs.batch.received.v1",
+        "headers": { "$ref": "#/components/schemas/EventHeaders" },
+        "payload": {
+          "type": "object",
+          "required": ["batchId", "source", "businessDate", "flowType", "sequence", "objectKey", "checksumSha256"],
+          "properties": {
+            "batchId": { "type": "string", "format": "uuid" },
+            "source": { "type": "string" },
+            "businessDate": { "type": "string", "format": "date" },
+            "flowType": { "type": "string", "minLength": 1 },
+            "sequence": { "type": "integer", "minimum": 0 },
+            "objectKey": { "type": "string" },
+            "checksumSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "schemaVersion": { "type": "integer", "minimum": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "ClosingRequested": {
+        "name": "ClosingRequested",
+        "messageId": "pms.closing.requested.v1",
+        "headers": { "$ref": "#/components/schemas/EventHeaders" },
+        "payload": {
+          "type": "object",
+          "required": ["closingId", "businessDate", "requestedBy"],
+          "properties": {
+            "closingId": { "type": "string", "format": "uuid" },
+            "businessDate": { "type": "string", "format": "date" },
+            "requestedBy": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "DocumentArchiveRequested": {
+        "name": "DocumentArchiveRequested",
+        "messageId": "pms.document.archive-requested.v1",
+        "headers": { "$ref": "#/components/schemas/EventHeaders" },
+        "payload": {
+          "type": "object",
+          "required": ["objectKey", "businessType", "businessId", "classification", "actorId", "evidentiary"],
+          "properties": {
+            "objectKey": { "type": "string" },
+            "businessType": { "type": "string" },
+            "businessId": { "type": "string" },
+            "classification": { "type": "string" },
+            "actorId": { "type": "string" },
+            "evidentiary": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "schemas": {
+      "EventHeaders": {
+        "type": "object",
+        "required": ["eventId", "correlationId", "occurredAt", "schemaVersion"],
+        "properties": {
+          "eventId": { "type": "string", "format": "uuid" },
+          "correlationId": { "type": "string", "format": "uuid" },
+          "causationId": { "type": "string", "format": "uuid" },
+          "occurredAt": { "type": "string", "format": "date-time" },
+          "schemaVersion": { "type": "integer", "minimum": 1 }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

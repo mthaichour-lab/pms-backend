@@ -1,0 +1,11 @@
+image:
+  repository: registry.internal.example/pms/pms-backend
+  tag: dev
+api:
+  replicas: 1
+workers:
+  calculation-worker: { replicas: 1, entrypoint: dist/apps/calculation-worker/src/main.js }
+  ingestion-worker: { replicas: 1, entrypoint: dist/apps/ingestion-worker/src/main.js }
+  closing-worker: { replicas: 1, entrypoint: dist/apps/closing-worker/src/main.js }
+  document-worker: { replicas: 1, entrypoint: dist/apps/document-worker/src/main.js }
+  scheduler: { replicas: 1, entrypoint: dist/apps/scheduler/src/main.js }

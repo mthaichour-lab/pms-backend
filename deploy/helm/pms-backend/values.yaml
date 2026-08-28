@@ -1,0 +1,57 @@
+image:
+  repository: registry.example.invalid/pms-backend
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+config:
+  rabbitmqEventsExchange: pms.events
+  clamavHost: clamav.platform.svc
+  clamavPort: "3310"
+  paperlessUrl: http://paperless.platform.svc:8000
+  landingUrl: http://landing-storage.platform.svc:8080
+  wormUrl: http://worm-archive.platform.svc:8080
+  wormRetentionClass: regulatory-10-years
+  kmsUrl: http://kms.platform.svc:8080
+  kmsAuditKeyId: pms-audit
+
+secretName: pms-backend-secrets
+
+api:
+  replicas: 2
+  port: 3001
+  resources:
+    requests: { cpu: 100m, memory: 192Mi }
+    limits: { cpu: 1000m, memory: 512Mi }
+
+workers:
+  calculation-worker: { replicas: 2, entrypoint: dist/apps/calculation-worker/src/main.js }
+  ingestion-worker: { replicas: 2, entrypoint: dist/apps/ingestion-worker/src/main.js }
+  closing-worker: { replicas: 1, entrypoint: dist/apps/closing-worker/src/main.js }
+  document-worker: { replicas: 2, entrypoint: dist/apps/document-worker/src/main.js }
+  scheduler: { replicas: 1, entrypoint: dist/apps/scheduler/src/main.js }
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile: { type: RuntimeDefault }
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: { drop: ["ALL"] }
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: pms-backend

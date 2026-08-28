@@ -1,0 +1,50 @@
+{{- range $name, $worker := .Values.workers }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pms-backend.fullname" $ }}-{{ $name }}
+  labels:
+    {{- include "pms-backend.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  replicas: {{ $worker.replicas }}
+  strategy: { type: RollingUpdate, rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } }
+  selector:
+    matchLabels: { app.kubernetes.io/instance: {{ $.Release.Name }}, app.kubernetes.io/component: {{ $name }} }
+  template:
+    metadata:
+      labels:
+        {{- include "pms-backend.labels" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ $name }}
+    spec:
+      securityContext: {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      affinity: {{- toYaml $.Values.affinity | nindent 8 }}
+      imagePullSecrets: {{- toYaml $.Values.imagePullSecrets | nindent 8 }}
+      containers:
+        - name: {{ $name }}
+          image: {{ include "pms-backend.image" $ }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command: ["node", {{ $worker.entrypoint | quote }}]
+          securityContext: {{- toYaml $.Values.containerSecurityContext | nindent 12 }}
+          env:
+            {{- include "pms-backend.env" $ | nindent 12 }}
+            {{- if or (eq $name "document-worker") (eq $name "ingestion-worker") }}
+            - { name: CLAMAV_HOST, value: {{ $.Values.config.clamavHost | quote }} }
+            - { name: CLAMAV_PORT, value: {{ $.Values.config.clamavPort | quote }} }
+            - { name: LANDING_URL, value: {{ $.Values.config.landingUrl | quote }} }
+            - { name: LANDING_WORKLOAD_TOKEN, valueFrom: { secretKeyRef: { name: {{ $.Values.secretName }}, key: landing-workload-token } } }
+            {{- end }}
+            {{- if eq $name "document-worker" }}
+            - { name: PAPERLESS_URL, value: {{ $.Values.config.paperlessUrl | quote }} }
+            - { name: WORM_URL, value: {{ $.Values.config.wormUrl | quote }} }
+            - { name: WORM_RETENTION_CLASS, value: {{ $.Values.config.wormRetentionClass | quote }} }
+            - { name: PAPERLESS_TOKEN, valueFrom: { secretKeyRef: { name: {{ $.Values.secretName }}, key: paperless-token } } }
+            - { name: WORM_WORKLOAD_TOKEN, valueFrom: { secretKeyRef: { name: {{ $.Values.secretName }}, key: worm-workload-token } } }
+            {{- end }}
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 1000m, memory: 512Mi }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]
+---
+{{- end }}

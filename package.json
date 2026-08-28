@@ -1,0 +1,41 @@
+{
+  "name": "pms-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.24.0",
+  "scripts": {
+    "contracts:lint": "node contracts/scripts/validate-contracts.mjs",
+    "contracts:generate-sdk": "node contracts/scripts/generate-sdk.mjs",
+    "contracts:check-sdk": "node contracts/scripts/generate-sdk.mjs --check",
+    "database:verify": "node database/verification/verify-foundation.mjs",
+    "sdk:build": "tsc -p packages/pms-api-client/tsconfig.lib.json",
+    "sdk:pack": "pnpm run sdk:build && pnpm --filter @bank/pms-api-client pack",
+    "build": "tsc -p tsconfig.build.json && pnpm run sdk:build",
+    "start": "node dist/apps/api/src/main.js",
+    "start:calculation-worker": "node dist/apps/calculation-worker/src/main.js",
+    "start:ingestion-worker": "node dist/apps/ingestion-worker/src/main.js",
+    "start:closing-worker": "node dist/apps/closing-worker/src/main.js",
+    "start:document-worker": "node dist/apps/document-worker/src/main.js",
+    "start:scheduler": "node dist/apps/scheduler/src/main.js",
+    "start:db-migrate": "node dist/apps/db-migrate/src/main.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pg": "8.23.1",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "amqplib": "2.0.1",
+    "jose": "6.2.10",
+    "pg": "8.23.0",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.0"
+  }
+}

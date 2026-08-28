@@ -1,0 +1,249 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PMS Backend API",
+    "version": "1.0.0",
+    "description": "Contrat initial publié par pms-backend pour le BFF pms-frontend."
+  },
+  "servers": [{ "url": "/api" }],
+  "security": [{ "keycloakBearer": [] }],
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "getApiStatus",
+        "parameters": [{ "$ref": "#/components/parameters/CorrelationId" }],
+        "responses": {
+          "200": {
+            "description": "API disponible",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiStatus" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/reference-data/currencies/{code}": {
+      "get": {
+        "operationId": "getEffectiveCurrency",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[A-Z]{3}$" }
+          },
+          {
+            "name": "businessDate",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version de devise applicable à la date métier",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CurrencyDefinition" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/investment-accounts/{accountId}": {
+      "get": {
+        "operationId": "getInvestmentAccountSnapshot",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "businessDate",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compte et dernière position applicable à la date métier",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InvestmentAccountSnapshot" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/pools/{poolId}/operations/approve": {
+      "post": {
+        "operationId": "approvePoolOperation",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          {
+            "name": "poolId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1 }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovePoolOperationCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Opération approuvée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovedPoolOperation"
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "keycloakBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "parameters": {
+      "CorrelationId": {
+        "name": "X-Correlation-ID",
+        "in": "header",
+        "required": true,
+        "schema": { "type": "string", "format": "uuid" }
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "schema": { "type": "string", "minLength": 16, "maxLength": 128 }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "Erreur normalisée RFC 9457",
+        "content": {
+          "application/problem+json": {
+            "schema": { "$ref": "#/components/schemas/Problem" }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ApiStatus": {
+        "type": "object",
+        "required": ["message"],
+        "properties": { "message": { "type": "string" } },
+        "additionalProperties": false
+      },
+      "CurrencyDefinition": {
+        "type": "object",
+        "required": ["code", "name", "fractionDigits", "validFrom"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "name": { "type": "string", "minLength": 1 },
+          "fractionDigits": { "type": "integer", "minimum": 0, "maximum": 6 },
+          "validFrom": { "type": "string", "format": "date" },
+          "validUntil": { "type": "string", "format": "date" }
+        },
+        "additionalProperties": false
+      },
+      "InvestmentPosition": {
+        "type": "object",
+        "required": ["businessDate", "valueDate", "balance", "currency"],
+        "properties": {
+          "businessDate": { "type": "string", "format": "date" },
+          "valueDate": { "type": "string", "format": "date" },
+          "balance": { "type": "string", "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+        },
+        "additionalProperties": false
+      },
+      "InvestmentAccountSnapshot": {
+        "type": "object",
+        "required": ["accountId", "productCode", "currency", "openedOn", "status"],
+        "properties": {
+          "accountId": { "type": "string", "format": "uuid" },
+          "productCode": { "type": "string" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "openedOn": { "type": "string", "format": "date" },
+          "status": { "type": "string", "enum": ["ACTIVE", "SUSPENDED", "CLOSED"] },
+          "closedOn": { "type": "string", "format": "date" },
+          "position": { "$ref": "#/components/schemas/InvestmentPosition" }
+        },
+        "additionalProperties": false
+      },
+      "ApprovePoolOperationCommand": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency",
+          "legalEntityId",
+          "branchId",
+          "workflowStatus"
+        ],
+        "properties": {
+          "amount": { "type": "string", "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "legalEntityId": { "type": "string", "minLength": 1 },
+          "branchId": { "type": "string", "minLength": 1 },
+          "workflowStatus": { "type": "string", "const": "PENDING_APPROVAL" },
+          "previousActorId": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      },
+      "ApprovedPoolOperation": {
+        "type": "object",
+        "required": ["poolId", "status", "amount", "currency"],
+        "properties": {
+          "poolId": { "type": "string" },
+          "status": { "type": "string", "const": "APPROVED" },
+          "amount": { "type": "string" },
+          "currency": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "Problem": {
+        "type": "object",
+        "required": ["type", "title", "status"],
+        "properties": {
+          "type": { "type": "string", "format": "uri-reference" },
+          "title": { "type": "string" },
+          "status": { "type": "integer", "minimum": 400, "maximum": 599 },
+          "detail": { "type": "string" },
+          "instance": { "type": "string", "format": "uri-reference" },
+          "correlationId": { "type": "string", "format": "uuid" }
+        }
+      }
+    }
+  }
+}

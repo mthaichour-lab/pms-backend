@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pms-backend.fullname" . }}-api
+  labels: {{- include "pms-backend.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.api.replicas }}
+  strategy: { type: RollingUpdate, rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } }
+  selector:
+    matchLabels: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: api }
+  template:
+    metadata:
+      labels:
+        {{- include "pms-backend.labels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      affinity: {{- toYaml .Values.affinity | nindent 8 }}
+      imagePullSecrets: {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      containers:
+        - name: api
+          image: {{ include "pms-backend.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["node", "dist/apps/api/src/main.js"]
+          securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports: [{ name: http, containerPort: {{ .Values.api.port }} }]
+          env: {{- include "pms-backend.env" . | nindent 12 }}
+          startupProbe: { httpGet: { path: /api/health/startup, port: http }, failureThreshold: 30, periodSeconds: 5 }
+          readinessProbe: { httpGet: { path: /api/health/ready, port: http }, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /api/health/live, port: http }, periodSeconds: 20 }
+          resources: {{- toYaml .Values.api.resources | nindent 12 }}
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pms-backend.fullname" . }}-api
+  labels: {{- include "pms-backend.labels" . | nindent 4 }}
+spec:
+  selector: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: api }
+  ports: [{ name: http, port: 80, targetPort: http }]
+---
+{{- if .Values.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "pms-backend.fullname" . }}-api
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: api }
+{{- end }}
