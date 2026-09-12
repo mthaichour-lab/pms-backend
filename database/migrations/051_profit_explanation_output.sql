@@ -1,0 +1,5 @@
+BEGIN;
+CREATE TABLE IF NOT EXISTS calculation.profit_explanation_output(run_id uuid NOT NULL REFERENCES calculation.run(run_id),account_id uuid NOT NULL REFERENCES investment.account(account_id),output jsonb NOT NULL,output_checksum_sha256 text NOT NULL CHECK(output_checksum_sha256~'^[a-f0-9]{64}$'),created_at timestamptz NOT NULL DEFAULT clock_timestamp(),PRIMARY KEY(run_id,account_id),CHECK(output?&ARRAY['capitalInvested','participationBase','eligiblePeriod','weighting','contractualRatio','poolProfit','allocatedShare','reservesUsed','taxAmount','netPaid','realizedRatePercent','distributedRatePercent','nonGuaranteedNotice','lossExplanation']));
+CREATE OR REPLACE FUNCTION calculation.reject_profit_explanation_mutation()RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RAISE EXCEPTION 'Engine profit explanation output is immutable';END;$$;
+CREATE TRIGGER profit_explanation_output_immutable BEFORE UPDATE OR DELETE ON calculation.profit_explanation_output FOR EACH ROW EXECUTE FUNCTION calculation.reject_profit_explanation_mutation();
+COMMIT;

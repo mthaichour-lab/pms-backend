@@ -1,0 +1,4 @@
+import{describe,expect,it}from'vitest';
+import{purificationStatement,validatePurificationCase}from'../../../src/modules/revenue/domain/purification.js';
+const item={purificationId:'17146c36-a0cb-4e0a-b095-60b67c945eb9',incomeId:'a1d817e4-657f-475f-a96a-7eecb8f93acc',poolId:'POOL_DZD',businessDate:'2026-08-29',currency:'DZD',amount:'100',reason:'Late-payment non-compliant income',status:'PENDING_DOCUMENTATION' as const,paidAmount:'0'};
+describe('purification',()=>{it('blocks readiness without beneficiary and Sharia decision',()=>{expect(()=>validatePurificationCase({...item,status:'READY'})).toThrow('mandatory')});it('reports identified, paid, carry and balance exactly',()=>{expect(purificationStatement([{...item,status:'PAID',paidAmount:'100',charityBeneficiaryId:'CHARITY-1',shariaDecisionReference:'SHARIA-2026-1'}],'25')).toEqual({openingCarry:'25.000000000000',identified:'100.000000000000',paid:'100.000000000000',closingBalance:'25.000000000000'})})});

@@ -10,6 +10,7 @@ export interface DocumentMetadata {
   classification: string;
   actorId: string;
   evidentiary: boolean;
+  archiveRequestId?: string;
 }
 
 export interface AntivirusPort {
@@ -34,7 +35,7 @@ export interface WormArchivePort {
 }
 
 export interface DocumentReferenceRepository {
-  save(reference: ArchivedDocumentReference): Promise<void>;
+  save(reference: ArchivedDocumentReference, archiveRequestId?: string): Promise<void>;
 }
 
 export interface ArchivedDocumentReference {

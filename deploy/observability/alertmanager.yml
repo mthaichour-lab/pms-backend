@@ -1,0 +1,11 @@
+route:
+  receiver: local-console
+  group_by: [alertname, severity]
+  group_wait: 10s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  # Production receivers (SIEM, pager, email) are environment-owned secrets.
+  # The local receiver intentionally has no external destination.
+  - name: local-console

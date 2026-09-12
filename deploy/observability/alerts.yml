@@ -1,0 +1,43 @@
+groups:
+  - name: pms-platform
+    rules:
+      - alert: PmsTelemetryTargetMissing
+        expr: up{job=~"otel-collector|pms-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          owner: devops
+        annotations:
+          summary: A PMS telemetry target is unavailable
+          description: Prometheus has not scraped {{ $labels.job }} for two minutes.
+      - alert: PmsApiHighErrorRate
+        expr: sum(rate(pms_http_requests_total{status_class="5xx"}[5m])) / clamp_min(sum(rate(pms_http_requests_total[5m])), 0.001) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          owner: backend
+        annotations:
+          summary: PMS API error rate exceeds 5%
+          description: More than 5% of API requests have returned 5xx responses for five minutes.
+      - alert: PmsApiP95LatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(pms_http_request_duration_milliseconds_bucket[5m]))) > 1000
+        for: 10m
+        labels:
+          severity: warning
+          owner: backend
+        annotations:
+          summary: PMS API p95 latency exceeds one second
+          description: The API p95 request duration has exceeded 1000 ms for ten minutes.
+
+  - name: pms-business-placeholders
+    rules:
+      # These recording rules establish stable names consumed by future alert rules.
+      # Missing metrics evaluate to zero until their owning business module is delivered.
+      - record: pms:cbs_ingestion_late:count
+        expr: sum(pms_cbs_ingestion_late) or vector(0)
+      - record: pms:calculation_repeated_failures:count
+        expr: sum(pms_calculation_repeated_failures) or vector(0)
+      - record: pms:accounting_imbalance:count
+        expr: sum(pms_accounting_imbalance) or vector(0)
+      - record: pms:critical_parameter_changes:count
+        expr: sum(pms_critical_parameter_changes) or vector(0)

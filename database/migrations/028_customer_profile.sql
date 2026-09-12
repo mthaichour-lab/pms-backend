@@ -1,0 +1,5 @@
+BEGIN;
+CREATE TABLE IF NOT EXISTS customer.profile (customer_id uuid PRIMARY KEY, identity_token text NOT NULL CHECK(identity_token ~ '^tok_[A-Za-z0-9_-]{16,128}$'), beneficial_owner_tokens text[] NOT NULL DEFAULT '{}', representative_tokens text[] NOT NULL DEFAULT '{}', segment text NOT NULL CHECK(segment IN ('RETAIL','SME','CORPORATE','INSTITUTIONAL')), kyc_status text NOT NULL CHECK(kyc_status IN ('PENDING','VERIFIED','EXPIRED','REJECTED')), legal_form text NOT NULL, sector_code text NOT NULL, branch_code text NOT NULL, updated_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_by text NOT NULL);
+CREATE TABLE IF NOT EXISTS customer.legal_restriction (restriction_id uuid PRIMARY KEY, customer_id uuid NOT NULL REFERENCES customer.profile(customer_id), kind text NOT NULL CHECK(kind IN ('SEIZURE','OPPOSITION','BLOCK')), reason text NOT NULL, effective_from date NOT NULL, lifted_at date, created_at timestamptz NOT NULL DEFAULT clock_timestamp(), CHECK(lifted_at IS NULL OR lifted_at >= effective_from));
+CREATE INDEX IF NOT EXISTS customer_active_restriction_idx ON customer.legal_restriction(customer_id) WHERE lifted_at IS NULL;
+COMMIT;

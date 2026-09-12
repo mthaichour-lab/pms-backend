@@ -1,0 +1,1 @@
+export const MANAGE_SHARIA_REVIEW = Symbol('MANAGE_SHARIA_REVIEW');

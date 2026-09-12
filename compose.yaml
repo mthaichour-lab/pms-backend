@@ -1,0 +1,98 @@
+x-pms-service: &pms-service
+  image: ${PMS_BACKEND_IMAGE:-pms-backend:local}
+  build:
+    context: .
+    dockerfile: Dockerfile
+  env_file: .env.compose
+  restart: unless-stopped
+  read_only: true
+  init: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  networks:
+    - pms
+
+services:
+  db-migrate:
+    <<: *pms-service
+    command: ["node", "dist/apps/db-migrate/src/main.js"]
+    restart: "no"
+
+  db-seed:
+    <<: *pms-service
+    command: ["node", "dist/apps/db-seed/src/main.js"]
+    profiles: ["local-seed"]
+    restart: "no"
+
+  api:
+    <<: *pms-service
+    command: ["node", "dist/apps/api/src/main.js"]
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${PMS_API_PORT:-3001}:3001"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/api/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+    mem_limit: 512m
+    cpus: 1.0
+
+  calculation-worker:
+    <<: *pms-service
+    command: ["node", "dist/apps/calculation-worker/src/main.js"]
+    depends_on: { db-migrate: { condition: service_completed_successfully } }
+    mem_limit: 512m
+    cpus: 1.0
+
+  ingestion-worker:
+    <<: *pms-service
+    command: ["node", "dist/apps/ingestion-worker/src/main.js"]
+    depends_on: { db-migrate: { condition: service_completed_successfully } }
+    mem_limit: 512m
+    cpus: 1.0
+
+  closing-worker:
+    <<: *pms-service
+    command: ["node", "dist/apps/closing-worker/src/main.js"]
+    depends_on: { db-migrate: { condition: service_completed_successfully } }
+    mem_limit: 512m
+    cpus: 1.0
+
+  document-worker:
+    <<: *pms-service
+    command: ["node", "dist/apps/document-worker/src/main.js"]
+    depends_on: { db-migrate: { condition: service_completed_successfully } }
+    mem_limit: 512m
+    cpus: 1.0
+
+  audit-worker:
+    <<: *pms-service
+    command: ["node", "dist/apps/audit-worker/src/main.js"]
+    depends_on: { db-migrate: { condition: service_completed_successfully } }
+    mem_limit: 256m
+    cpus: 0.5
+
+  scheduler:
+    <<: *pms-service
+    command: ["node", "dist/apps/scheduler/src/main.js"]
+    depends_on: { db-migrate: { condition: service_completed_successfully } }
+    mem_limit: 256m
+    cpus: 0.5
+
+networks:
+  pms:
+    name: pms-network

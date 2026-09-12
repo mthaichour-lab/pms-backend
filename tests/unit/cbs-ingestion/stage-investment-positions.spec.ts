@@ -5,8 +5,8 @@ import {
   StageInvestmentPositions,
 } from '../../../src/modules/cbs-ingestion/application/stage-investment-positions.js';
 
-const header = 'account_id,customer_token,product_code,currency,opened_on,business_date,value_date,balance';
-const row = '17146c36-a0cb-4e0a-b095-60b67c945eb9,tok_1234567890abcdef,MUDARABA,DZD,2026-01-01,2026-08-28,2026-08-27,1250.250000000000';
+const header = 'account_id,customer_id,product_code,currency,opened_on,business_date,value_date,balance';
+const row = '17146c36-a0cb-4e0a-b095-60b67c945eb9,CBS-CUSTOMER-42,MUDARABA,DZD,2026-01-01,2026-08-28,2026-08-27,1250.250000000000';
 
 describe('StageInvestmentPositions', () => {
   it('parses the contracted CSV and stages exact decimal values', async () => {
@@ -21,8 +21,8 @@ describe('StageInvestmentPositions', () => {
     })]);
   });
 
-  it('supports quoted fields but rejects non-tokenized customers', () => {
+  it('supports quoted fields but rejects unsafe customer references', () => {
     expect(parseInvestmentPositionsCsv(`${header}\n${row.replace('MUDARABA', '"MUDARABA"')}`)).toHaveLength(1);
-    expect(() => parseInvestmentPositionsCsv(`${header}\n${row.replace('tok_1234567890abcdef', 'customer-1')}`)).toThrow('Untokenized');
+    expect(() => parseInvestmentPositionsCsv(`${header}\n${row.replace('CBS-CUSTOMER-42', 'customer with spaces')}`)).toThrow('Invalid customer');
   });
 });

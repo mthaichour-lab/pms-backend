@@ -6,18 +6,27 @@ CREATE TABLE IF NOT EXISTS pooling.pool (
   currency_code text NOT NULL CHECK (currency_code ~ '^[A-Z]{3}$'),
   amount_scale smallint NOT NULL DEFAULT 12 CHECK (amount_scale BETWEEN 0 AND 12),
   status text NOT NULL CHECK (status IN ('ACTIVE', 'SUSPENDED', 'CLOSED')),
-  created_at timestamptz NOT NULL DEFAULT clock_timestamp()
+  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  UNIQUE (pool_id, currency_code)
 );
 
 CREATE TABLE IF NOT EXISTS pooling.participant_version (
   pool_id text NOT NULL REFERENCES pooling.pool(pool_id),
   account_id uuid NOT NULL REFERENCES investment.account(account_id),
+  currency_code text NOT NULL CHECK (currency_code ~ '^[A-Z]{3}$'),
   weight numeric(30, 12) NOT NULL CHECK (weight >= 0),
   valid_from date NOT NULL,
   valid_until date,
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   PRIMARY KEY (pool_id, account_id, valid_from),
-  CHECK (valid_until IS NULL OR valid_until > valid_from)
+  CHECK (valid_until IS NULL OR valid_until > valid_from),
+  FOREIGN KEY (pool_id, currency_code) REFERENCES pooling.pool(pool_id, currency_code),
+  FOREIGN KEY (account_id, currency_code) REFERENCES investment.account(account_id, currency_code),
+  EXCLUDE USING gist (
+    pool_id WITH =,
+    account_id WITH =,
+    daterange(valid_from, valid_until, '[)') WITH &&
+  )
 );
 
 CREATE TABLE IF NOT EXISTS pooling.distributable_result (
@@ -31,9 +40,6 @@ CREATE TABLE IF NOT EXISTS pooling.distributable_result (
   FOREIGN KEY (pool_id, currency_code) REFERENCES pooling.pool(pool_id, currency_code)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS pool_currency_unique
-  ON pooling.pool (pool_id, currency_code);
-
 CREATE TABLE IF NOT EXISTS calculation.run (
   run_id uuid PRIMARY KEY,
   pool_id text NOT NULL REFERENCES pooling.pool(pool_id),
@@ -46,8 +52,15 @@ CREATE TABLE IF NOT EXISTS calculation.run (
   )),
   input_checksum_sha256 text CHECK (input_checksum_sha256 IS NULL OR input_checksum_sha256 ~ '^[a-f0-9]{64}$'),
   output_checksum_sha256 text CHECK (output_checksum_sha256 IS NULL OR output_checksum_sha256 ~ '^[a-f0-9]{64}$'),
+  input_snapshot jsonb,
+  distributable_amount numeric(30, 12),
+  currency_code text CHECK (currency_code IS NULL OR currency_code ~ '^[A-Z]{3}$'),
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   calculated_at timestamptz,
+  CHECK (status IN ('DRAFT', 'FAILED') OR (
+    input_checksum_sha256 IS NOT NULL AND output_checksum_sha256 IS NOT NULL
+    AND input_snapshot IS NOT NULL AND distributable_amount IS NOT NULL AND currency_code IS NOT NULL
+  )),
   UNIQUE (pool_id, business_date, rules_version)
 );
 

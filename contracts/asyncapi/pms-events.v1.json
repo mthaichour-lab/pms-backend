@@ -2,7 +2,7 @@
   "asyncapi": "3.0.0",
   "info": {
     "title": "PMS Backend Events",
-    "version": "1.2.0",
+    "version": "1.4.0",
     "description": "Contrat des événements durables publiés par pms-backend."
   },
   "defaultContentType": "application/json",
@@ -15,6 +15,10 @@
       "address": "pms.cbs.batch.received.v1",
       "messages": { "event": { "$ref": "#/components/messages/CbsBatchReceived" } }
     },
+    "cbsBatchPublished": {
+      "address": "pms.cbs.batch.published.v1",
+      "messages": { "event": { "$ref": "#/components/messages/CbsBatchPublished" } }
+    },
     "closingRequested": {
       "address": "pms.closing.requested.v1",
       "messages": { "event": { "$ref": "#/components/messages/ClosingRequested" } }
@@ -22,13 +26,19 @@
     "documentArchiveRequested": {
       "address": "pms.document.archive-requested.v1",
       "messages": { "event": { "$ref": "#/components/messages/DocumentArchiveRequested" } }
+    },
+    "auditWorkflowActionRecorded": {
+      "address": "pms.audit.workflow-action-recorded.v1",
+      "messages": { "event": { "$ref": "#/components/messages/AuditWorkflowActionRecorded" } }
     }
   },
   "operations": {
     "publishCalculationRequested": { "action": "send", "channel": { "$ref": "#/channels/calculationRequested" } },
     "publishCbsBatchReceived": { "action": "send", "channel": { "$ref": "#/channels/cbsBatchReceived" } },
+    "publishCbsBatchPublished": { "action": "send", "channel": { "$ref": "#/channels/cbsBatchPublished" } },
     "publishClosingRequested": { "action": "send", "channel": { "$ref": "#/channels/closingRequested" } },
-    "publishDocumentArchiveRequested": { "action": "send", "channel": { "$ref": "#/channels/documentArchiveRequested" } }
+    "publishDocumentArchiveRequested": { "action": "send", "channel": { "$ref": "#/channels/documentArchiveRequested" } },
+    "publishAuditWorkflowActionRecorded": { "action": "send", "channel": { "$ref": "#/channels/auditWorkflowActionRecorded" } }
   },
   "components": {
     "messages": {
@@ -38,12 +48,13 @@
         "headers": { "$ref": "#/components/schemas/EventHeaders" },
         "payload": {
           "type": "object",
-          "required": ["runId", "poolId", "businessDate", "rulesVersion"],
+          "required": ["runId", "poolId", "businessDate", "rulesVersion", "requestedBy"],
           "properties": {
             "runId": { "type": "string", "format": "uuid" },
             "poolId": { "type": "string" },
             "businessDate": { "type": "string", "format": "date" },
-            "rulesVersion": { "type": "string" }
+            "rulesVersion": { "type": "string" },
+            "requestedBy": { "type": "string", "minLength": 1 }
           },
           "additionalProperties": false
         }
@@ -54,7 +65,7 @@
         "headers": { "$ref": "#/components/schemas/EventHeaders" },
         "payload": {
           "type": "object",
-          "required": ["batchId", "source", "businessDate", "flowType", "sequence", "objectKey", "checksumSha256"],
+          "required": ["batchId", "source", "businessDate", "flowType", "sequence", "objectKey", "checksumSha256", "manifestRowCount", "manifestBalanceTotal", "signatureBase64", "receivedAt"],
           "properties": {
             "batchId": { "type": "string", "format": "uuid" },
             "source": { "type": "string" },
@@ -64,9 +75,21 @@
             "objectKey": { "type": "string" },
             "checksumSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
             "schemaVersion": { "type": "integer", "minimum": 1 }
+            ,"manifestRowCount": { "type": "integer", "minimum": 0 }
+            ,"manifestBalanceTotal": { "type": "string", "pattern": "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,12})?$" }
+            ,"signatureBase64": { "type": "string", "minLength": 80 }
+            ,"receivedAt": { "type": "string", "format": "date-time" }
           },
           "additionalProperties": false
         }
+      },
+      "CbsBatchPublished": {
+        "name": "CbsBatchPublished", "messageId": "pms.cbs.batch.published.v1",
+        "headers": { "$ref": "#/components/schemas/EventHeaders" },
+        "payload": { "type": "object", "required": ["batchId", "businessDate", "flowType", "publishedRows"], "properties": {
+          "batchId": { "type": "string", "format": "uuid" }, "businessDate": { "type": "string", "format": "date" },
+          "flowType": { "type": "string" }, "publishedRows": { "type": "integer", "minimum": 0 }
+        }, "additionalProperties": false }
       },
       "ClosingRequested": {
         "name": "ClosingRequested",
@@ -89,14 +112,36 @@
         "headers": { "$ref": "#/components/schemas/EventHeaders" },
         "payload": {
           "type": "object",
-          "required": ["objectKey", "businessType", "businessId", "classification", "actorId", "evidentiary"],
+          "required": ["requestId", "objectKey", "businessType", "businessId", "classification", "actorId", "evidentiary"],
           "properties": {
+            "requestId": { "type": "string", "format": "uuid" },
             "objectKey": { "type": "string" },
             "businessType": { "type": "string" },
             "businessId": { "type": "string" },
             "classification": { "type": "string" },
             "actorId": { "type": "string" },
             "evidentiary": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "AuditWorkflowActionRecorded": {
+        "name": "AuditWorkflowActionRecorded",
+        "messageId": "pms.audit.workflow-action-recorded.v1",
+        "headers": { "$ref": "#/components/schemas/EventHeaders" },
+        "payload": {
+          "type": "object",
+          "required": ["resourceType", "resourceId", "action", "actorId", "justification", "resultState", "businessDate"],
+          "properties": {
+            "resourceType": { "type": "string", "minLength": 1 },
+            "resourceId": { "type": "string", "minLength": 1 },
+            "action": { "type": "string", "enum": ["CONTROL_CALCULATION", "APPROVE_CALCULATION", "APPROVE_CLOSING", "REJECT_CLOSING"] },
+            "actorId": { "type": "string", "minLength": 1 },
+            "justification": { "type": "string", "minLength": 10 },
+            "resultState": { "type": "string", "minLength": 1 },
+            "businessDate": { "type": "string", "format": "date" },
+            "sessionId": { "type": "string", "minLength": 1 },
+            "sourceAddress": { "type": "string", "format": "ipv4" }
           },
           "additionalProperties": false
         }

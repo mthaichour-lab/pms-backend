@@ -6,6 +6,7 @@ import { ScanCbsBatch } from '../../../src/modules/cbs-ingestion/application/sca
 import { StageInvestmentPositions } from '../../../src/modules/cbs-ingestion/application/stage-investment-positions.js';
 import { ValidateInvestmentPositions } from '../../../src/modules/cbs-ingestion/application/validate-investment-positions.js';
 import { PublishInvestmentPositions } from '../../../src/modules/cbs-ingestion/application/publish-investment-positions.js';
+import { AuthenticateCbsManifest } from '../../../src/modules/cbs-ingestion/application/authenticate-cbs-manifest.js';
 
 export class CbsBatchMessageHandler {
   private readonly consumer: IdempotentConsumer;
@@ -17,6 +18,7 @@ export class CbsBatchMessageHandler {
     private readonly stageInvestmentPositions?: StageInvestmentPositions,
     private readonly validateInvestmentPositions?: ValidateInvestmentPositions,
     private readonly publishInvestmentPositions?: PublishInvestmentPositions,
+    private readonly authenticate?: AuthenticateCbsManifest,
   ) {
     this.consumer = new IdempotentConsumer('ingestion-worker', inbox);
   }
@@ -33,12 +35,23 @@ export class CbsBatchMessageHandler {
         schemaVersion: message.schemaVersion,
         checksumSha256: stringField(payload, 'checksumSha256'),
         objectKey: stringField(payload, 'objectKey'),
+        manifestRowCount: integerField(payload, 'manifestRowCount'),
+        manifestBalanceTotal: stringField(payload, 'manifestBalanceTotal'),
       };
       const registration = await this.register.execute(batch);
       if (['PUBLISHED', 'QUARANTINED', 'REJECTED', 'PARTIALLY_REJECTED', 'FAILED', 'CANCELLED'].includes(registration.state)) {
         return;
       }
-      const scan = registration.state === 'RECEIVED' || registration.state === 'SCANNED'
+      const authentication = registration.state === 'RECEIVED'
+        ? await this.authenticate?.execute({
+            ...batch,
+            signatureBase64: stringField(payload, 'signatureBase64'),
+            receivedAt: stringField(payload, 'receivedAt'),
+          })
+        : undefined;
+      if (registration.state === 'RECEIVED' && !this.authenticate) throw new Error('CBS manifest authentication is not configured');
+      if (authentication === 'REJECTED') return;
+      const scan = registration.state === 'AUTHENTICATED' || authentication === 'AUTHENTICATED' || registration.state === 'SCANNED'
         ? await this.scan?.execute({ ...batch, batchId: registration.batchId })
         : undefined;
       if (scan?.state === 'SCANNED' && batch.flowType === 'INVESTMENT_POSITIONS') {
@@ -53,7 +66,7 @@ export class CbsBatchMessageHandler {
         const validation = await this.validateInvestmentPositions.execute(registration.batchId, batch.businessDate);
         if (validation === 'VALIDATED') {
           if (!this.publishInvestmentPositions) throw new Error('Investment positions publication is not configured');
-          await this.publishInvestmentPositions.execute(registration.batchId);
+          await this.publishInvestmentPositions.execute(registration.batchId, message.correlationId);
         }
       }
       if (
@@ -61,7 +74,7 @@ export class CbsBatchMessageHandler {
         (registration.state === 'VALIDATED' || registration.state === 'APPROVED')
       ) {
         if (!this.publishInvestmentPositions) throw new Error('Investment positions publication is not configured');
-        await this.publishInvestmentPositions.execute(registration.batchId);
+        await this.publishInvestmentPositions.execute(registration.batchId, message.correlationId);
       }
     });
   }

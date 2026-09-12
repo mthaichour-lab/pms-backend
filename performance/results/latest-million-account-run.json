@@ -1,0 +1,62 @@
+{
+  "story": "14.1",
+  "executedAt": "2026-08-30T20:31:55.172Z",
+  "targetAccounts": 1000000,
+  "processedAccounts": 1000000,
+  "poolCount": 8,
+  "parallelization": "worker-thread-per-pool",
+  "durationMs": 77.68,
+  "closingWindowMs": 1800000,
+  "throughputAccountsPerSecond": 12874005.97,
+  "withinClosingWindow": true,
+  "pools": [
+    {
+      "poolId": 0,
+      "accounts": 125000,
+      "totalWeight": "624322500",
+      "checksum": "3e1a35476c461fc8b6598684ca0fd67323407c8fbfa904fff3e1dadbe894efa0"
+    },
+    {
+      "poolId": 1,
+      "accounts": 125000,
+      "totalWeight": "624327500",
+      "checksum": "3ceb8e8c03bd3e79c05dc7120ad76611487115b36ce5a9b9632848946fc3a81e"
+    },
+    {
+      "poolId": 2,
+      "accounts": 125000,
+      "totalWeight": "624332500",
+      "checksum": "8903db68d0845d0498342eb285fc9a1688453d0efc4ea0869330029fbb5c21fd"
+    },
+    {
+      "poolId": 3,
+      "accounts": 125000,
+      "totalWeight": "624337500",
+      "checksum": "5a8d183b2bdeb97682eb577e734e6bc72699755baba0952aa65020eb75a2df51"
+    },
+    {
+      "poolId": 4,
+      "accounts": 125000,
+      "totalWeight": "624342500",
+      "checksum": "37968c3d562c0443994470cbad2420d2366c94ced5786cf750d54b8dccb78818"
+    },
+    {
+      "poolId": 5,
+      "accounts": 125000,
+      "totalWeight": "624347500",
+      "checksum": "65a825f3063d52df3b0434d395729ac78e4cc347d2a540ffdf3adbf9fbebc944"
+    },
+    {
+      "poolId": 6,
+      "accounts": 125000,
+      "totalWeight": "624352500",
+      "checksum": "615a9d670a79ff4dbb97b875b2da3cd3c2be8c1673444a059834ce5cadd6be05"
+    },
+    {
+      "poolId": 7,
+      "accounts": 125000,
+      "totalWeight": "624357500",
+      "checksum": "c66ca7edbb6abdb71df96c6c71f395965517d98afa7bc6cc6479da88a3dbbb24"
+    }
+  ]
+}

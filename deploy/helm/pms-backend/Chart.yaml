@@ -1,6 +1,0 @@
-apiVersion: v2
-name: pms-backend
-description: PMS API, workers, scheduler and controlled database migration
-type: application
-version: 0.1.0
-appVersion: "0.1.0"

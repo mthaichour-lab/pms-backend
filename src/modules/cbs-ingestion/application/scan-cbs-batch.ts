@@ -20,18 +20,18 @@ export class ScanCbsBatch {
     const content = await this.landing.load(batch.objectKey);
     const actualChecksum = createHash('sha256').update(content.bytes).digest('hex');
     if (actualChecksum !== batch.checksumSha256) {
-      await this.repository.transition(batch.batchId, 'RECEIVED', 'QUARANTINED', 'CHECKSUM_MISMATCH');
+      await this.repository.transition(batch.batchId, 'AUTHENTICATED', 'QUARANTINED', 'CHECKSUM_MISMATCH');
       return { state: 'QUARANTINED' };
     }
     const scan = await this.antivirus.scan(content);
     if (!scan.clean) {
       await this.repository.transition(
-        batch.batchId, 'RECEIVED', 'QUARANTINED',
+        batch.batchId, 'AUTHENTICATED', 'QUARANTINED',
         scan.signature ? `MALWARE:${scan.signature}` : 'MALWARE',
       );
       return { state: 'QUARANTINED' };
     }
-    await this.repository.transition(batch.batchId, 'RECEIVED', 'SCANNED');
+    await this.repository.transition(batch.batchId, 'AUTHENTICATED', 'SCANNED');
     return { state: 'SCANNED', content };
   }
 }

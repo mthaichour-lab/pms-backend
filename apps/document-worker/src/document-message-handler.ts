@@ -34,6 +34,7 @@ export class DocumentMessageHandler {
           classification: payload.classification,
           actorId: payload.actorId,
           evidentiary: payload.evidentiary,
+          archiveRequestId: payload.requestId,
         },
       });
       return reference.checksumSha256;
@@ -43,6 +44,7 @@ export class DocumentMessageHandler {
 
 function archivePayload(payload: Readonly<Record<string, unknown>>) {
   const requiredStrings = [
+    'requestId',
     'objectKey',
     'businessType',
     'businessId',
@@ -58,6 +60,7 @@ function archivePayload(payload: Readonly<Record<string, unknown>>) {
     throw new TypeError('Invalid document event field: evidentiary');
   }
   return {
+    requestId: payload['requestId'] as string,
     objectKey: payload['objectKey'] as string,
     businessType: payload['businessType'] as string,
     businessId: payload['businessId'] as string,

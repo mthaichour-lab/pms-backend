@@ -54,6 +54,7 @@ describe('PostgreSQL messaging repositories', () => {
         payload: {},
       }),
     ).resolves.toBe(false);
-    expect(query.mock.calls[0]?.[0]).toContain('ON CONFLICT (consumer_name, message_id) DO NOTHING');
+    expect(query.mock.calls[0]?.[0]).toContain('ON CONFLICT (consumer_name, message_id) DO UPDATE');
+    expect(query.mock.calls[0]?.[0]).toContain("interval '5 minutes'");
   });
 });

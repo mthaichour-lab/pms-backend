@@ -1,0 +1,120 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pms}
+      POSTGRES_USER: ${POSTGRES_USER:-pms_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.local}
+    ports: ["127.0.0.1:${POSTGRES_PORT:-5432}:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [pms]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-pms}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env.local}
+      RABBITMQ_DEFAULT_VHOST: pms
+    ports:
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes: ["rabbitmq-data:/var/lib/rabbitmq"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [pms]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: ["start-dev", "--import-realm", "--health-enabled=true"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD in .env.local}
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8080}
+    ports: ["127.0.0.1:${KEYCLOAK_PORT:-8080}:8080"]
+    volumes:
+      - ./deploy/keycloak/pms-dev-realm.json:/opt/keycloak/data/import/pms-dev-realm.json:ro
+      - keycloak-data:/opt/keycloak/data
+    networks: [pms]
+
+  keycloak-bootstrap:
+    image: quay.io/keycloak/keycloak:26.0
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - |
+        until /opt/keycloak/bin/kcadm.sh config credentials --server http://keycloak:8080 --realm master --user "$${ADMIN_USER}" --password "$${ADMIN_PASSWORD}"; do sleep 2; done
+        USER_ID="$$(/opt/keycloak/bin/kcadm.sh get users -r pms-dev -q username="$${DEV_USER}" --fields id --format csv --noquotes | head -n 1)"
+        if [ -z "$${USER_ID}" ]; then
+          /opt/keycloak/bin/kcadm.sh create users -r pms-dev -s username="$${DEV_USER}" -s enabled=true -s emailVerified=true -s email="$${DEV_EMAIL}"
+          USER_ID="$$(/opt/keycloak/bin/kcadm.sh get users -r pms-dev -q username="$${DEV_USER}" --fields id --format csv --noquotes | head -n 1)"
+        fi
+        /opt/keycloak/bin/kcadm.sh set-password -r pms-dev --userid "$${USER_ID}" --new-password "$${DEV_PASSWORD}"
+    environment:
+      ADMIN_USER: ${KEYCLOAK_ADMIN:-admin}
+      ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      DEV_USER: ${KEYCLOAK_DEV_USER:-developer}
+      DEV_EMAIL: ${KEYCLOAK_DEV_EMAIL:-developer@pms.local}
+      DEV_PASSWORD: ${KEYCLOAK_DEV_PASSWORD:?set KEYCLOAK_DEV_PASSWORD in .env.local}
+    depends_on:
+      keycloak: { condition: service_started }
+    restart: "no"
+    networks: [pms]
+
+  db-migrate:
+    environment: &local-runtime
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pms_app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-pms}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-pms}:${RABBITMQ_PASSWORD}@rabbitmq:5672/pms
+      OIDC_ISSUER: http://localhost:${KEYCLOAK_PORT:-8080}/realms/pms-dev
+      OIDC_JWKS_URI: http://keycloak:8080/realms/pms-dev/protocol/openid-connect/certs
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  db-seed:
+    environment: *local-runtime
+    depends_on:
+      postgres: { condition: service_healthy }
+      db-migrate: { condition: service_completed_successfully }
+
+  api:
+    environment: *local-runtime
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      keycloak-bootstrap: { condition: service_completed_successfully }
+      db-migrate: { condition: service_completed_successfully }
+      db-seed: { condition: service_completed_successfully }
+
+  calculation-worker:
+    environment: *local-runtime
+    depends_on: &local-worker-dependencies
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      db-migrate: { condition: service_completed_successfully }
+
+  ingestion-worker:
+    environment: *local-runtime
+    depends_on: *local-worker-dependencies
+
+  closing-worker:
+    environment: *local-runtime
+    depends_on: *local-worker-dependencies
+
+  document-worker:
+    environment: *local-runtime
+    depends_on: *local-worker-dependencies
+
+  scheduler:
+    environment: *local-runtime
+    depends_on: *local-worker-dependencies
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  keycloak-data:

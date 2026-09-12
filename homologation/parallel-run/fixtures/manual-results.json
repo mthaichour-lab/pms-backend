@@ -1,0 +1,6 @@
+{
+  "results": [
+    { "accountReference": "ACC-001", "currency": "DZD", "amount": "1250.50" },
+    { "accountReference": "ACC-002", "currency": "DZD", "amount": "829.95" }
+  ]
+}

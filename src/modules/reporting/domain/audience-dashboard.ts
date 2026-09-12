@@ -1,0 +1,8 @@
+export type DashboardAudience='EXECUTIVE'|'FINANCE'|'RISK_ALM'|'SHARIA';
+export const DASHBOARD_ITEMS:Record<DashboardAudience,readonly string[]>={
+EXECUTIVE:['OUTSTANDING','NET_COLLECTION','GROSS_NET_REVENUE','INVESTOR_BANK_PROFIT','REALIZED_DISTRIBUTED_TARGET_RATE','MARGIN_BY_PRODUCT_POOL','PER_IRR_DCR','WITHDRAWAL_TREND','ASSET_QUALITY','BUDGET_ACTUAL','ALERTS','CLOSING_STATUS'],
+FINANCE:['PROFIT_WATERFALL','ASSET_CONTRIBUTION','REVENUE_BY_CATEGORY','CHARGES_LOSSES','WEIGHTED_BASES','SHARING_RATIOS','ANOMALIES_ADJUSTMENTS','CLOSING_STATUS','JOURNALS_RECONCILIATIONS'],
+RISK_ALM:['YIELD_GAPS','MATURITY_LIQUIDITY_GAPS','CONCENTRATION','NON_PERFORMING_ASSETS','PROJECTIONS','STRESS_TESTS','DCR','PER_IRR_COVERAGE'],
+SHARIA:['POOL_COMPOSITION','ASSET_COMPLIANCE','REVENUE_SOURCES','DEDUCTED_CHARGES','PURIFICATION','SHARIA_INCIDENTS','PARAMETER_CHANGES','RESERVE_USES','EXCEPTIONAL_TREATMENTS']};
+export interface DashboardItem{code:string;value:unknown;availability:'AVAILABLE'|'UNAVAILABLE';justification?:string;}
+export function assertDashboardCompliance(audience:DashboardAudience,items:readonly DashboardItem[]){const expected=DASHBOARD_ITEMS[audience];const supplied=new Set(items.map(item=>item.code));const missing=expected.filter(code=>!supplied.has(code));if(missing.length)throw new Error(`Dashboard compliance floor missing: ${missing.join(', ')}`);for(const item of items)if(item.availability==='UNAVAILABLE'&&!item.justification?.trim())throw new Error(`Unavailable dashboard item ${item.code} requires documented justification`);return{audience,requiredItemCount:expected.length,complete:true,items};}

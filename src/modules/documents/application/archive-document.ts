@@ -70,7 +70,8 @@ export class ArchiveDocument {
       wormManifestChecksumSha256: worm?.manifestChecksumSha256,
       createdBy: input.metadata.actorId,
     };
-    await this.references.save(reference);
+    if (input.metadata.archiveRequestId) await this.references.save(reference, input.metadata.archiveRequestId);
+    else await this.references.save(reference);
     return reference;
   }
 }

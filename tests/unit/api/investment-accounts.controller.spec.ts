@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { InvestmentAccountsController } from '../../../apps/api/src/investment-accounts/investment-accounts.controller.js';
 import { GetInvestmentAccountSnapshot } from '../../../src/modules/investment-accounts/application/get-investment-account-snapshot.js';
+import { ManageInvestmentSubscription } from '../../../src/modules/investment-accounts/application/manage-investment-subscription.js';
 
 const accountId = '17146c36-a0cb-4e0a-b095-60b67c945eb9';
 
@@ -13,7 +14,7 @@ describe('InvestmentAccountsController', () => {
       openedOn: '2026-01-01', status: 'ACTIVE',
       position: { businessDate: '2026-08-28', valueDate: '2026-08-28', balance: '1250.000000000000', currency: 'DZD' },
     } : undefined,
-  }));
+  }), new ManageInvestmentSubscription({ find: async () => undefined, save: async () => undefined }, { assertProfitRightsOperationAllowed: async () => undefined }));
 
   it('returns an account and its applicable position', async () => {
     await expect(controller.getAccount(accountId, '2026-08-28')).resolves.toMatchObject({

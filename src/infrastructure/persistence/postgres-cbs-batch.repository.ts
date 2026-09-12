@@ -4,8 +4,9 @@ import type {
 } from '../../modules/cbs-ingestion/application/register-cbs-batch.js';
 import type { SqlClient } from './postgres-client.js';
 import type { CbsBatchState } from '../../modules/cbs-ingestion/domain/batch-state.js';
+import type { CbsAuthenticationRepository } from '../../modules/cbs-ingestion/application/authenticate-cbs-manifest.js';
 
-export class PostgresCbsBatchRepository implements CbsBatchRepository {
+export class PostgresCbsBatchRepository implements CbsBatchRepository, CbsAuthenticationRepository {
   constructor(private readonly database: SqlClient) {}
 
   async registerReceived(batch: CbsBatchDescriptor): Promise<{
@@ -16,13 +17,13 @@ export class PostgresCbsBatchRepository implements CbsBatchRepository {
     }>(
       `INSERT INTO integration.cbs_batch
          (batch_id, source_code, business_date, flow_type, sequence_number,
-          schema_version, checksum_sha256, object_key, state)
-       VALUES ($1::uuid, $2, $3::date, $4, $5, $6, $7, $8, 'RECEIVED')
+          schema_version, checksum_sha256, object_key, manifest_row_count, manifest_balance_total, state)
+       VALUES ($1::uuid, $2, $3::date, $4, $5, $6, $7, $8, $9, $10::numeric, 'RECEIVED')
        ON CONFLICT (source_code, business_date, flow_type, sequence_number)
        DO UPDATE SET source_code = EXCLUDED.source_code
        RETURNING batch_id::text, checksum_sha256, object_key, state, (xmax = 0) AS inserted`,
       [batch.batchId, batch.source, batch.businessDate, batch.flowType, batch.sequence,
-        batch.schemaVersion, batch.checksumSha256, batch.objectKey],
+        batch.schemaVersion, batch.checksumSha256, batch.objectKey, batch.manifestRowCount, batch.manifestBalanceTotal],
     );
     const stored = result.rows[0];
     if (!stored) throw new Error('CBS batch registration returned no row');
@@ -38,8 +39,8 @@ export class PostgresCbsBatchRepository implements CbsBatchRepository {
 
   async transition(
     batchId: string,
-    expectedState: 'RECEIVED',
-    nextState: 'SCANNED' | 'QUARANTINED',
+    expectedState: CbsBatchState,
+    nextState: CbsBatchState,
     reason?: string,
   ): Promise<void> {
     const result = await this.database.query(
@@ -51,5 +52,9 @@ export class PostgresCbsBatchRepository implements CbsBatchRepository {
     if (result.rowCount !== 1) {
       throw new Error(`CBS batch ${batchId} is no longer in ${expectedState}`);
     }
+  }
+
+  recordAuthentication(batchId: string, result: 'AUTHENTICATED' | 'REJECTED', reason?: string): Promise<void> {
+    return this.transition(batchId, 'RECEIVED', result, reason);
   }
 }

@@ -4,7 +4,8 @@ import { assertBatchTransition } from '../../../src/modules/cbs-ingestion/domain
 
 describe('CBS batch state machine', () => {
   it('allows the controlled nominal publication path', () => {
-    expect(() => assertBatchTransition('RECEIVED', 'SCANNED')).not.toThrow();
+    expect(() => assertBatchTransition('RECEIVED', 'AUTHENTICATED')).not.toThrow();
+    expect(() => assertBatchTransition('AUTHENTICATED', 'SCANNED')).not.toThrow();
     expect(() => assertBatchTransition('APPROVED', 'PUBLISHED')).not.toThrow();
   });
 

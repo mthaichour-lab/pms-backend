@@ -2,12 +2,14 @@ import type {
   AuthorizationPolicy,
   AuthorizationResource,
 } from '../../../../src/shared-kernel/authorization-contracts.js';
+import { randomUUID } from 'node:crypto';
 import { evaluateAuthorization } from '../../../../src/modules/identity-access/domain/authorization.js';
 import {
   BadRequestException,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
 } from '@nestjs/common';
@@ -17,21 +19,28 @@ import type { AuthenticatedUserClaims } from '../auth/authenticated-user.js';
 import { PUBLIC_ROUTE } from '../auth/public.decorator.js';
 import { AUTHORIZATION_POLICY } from './authorization.decorator.js';
 import { authorizationSubjectFromClaims } from './authorization-subject.js';
+import { AUDIT_EVENT_WRITER, type AuditEventWriter } from '../audit/audit.tokens.js';
+import { correlationFromHeader } from '../observability/correlation.middleware.js';
 
 interface AuthorizationHttpRequest {
+  method: string;
   headers: Record<string, string | string[] | undefined>;
   user: AuthenticatedUserClaims;
   params?: Record<string, string | undefined>;
   body?: Record<string, unknown>;
+  ip?: string;
 }
 
 @Injectable()
 export class AuthorizationGuard implements CanActivate {
   private readonly logger = new Logger(AuthorizationGuard.name);
 
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    @Inject(AUDIT_EVENT_WRITER) private readonly audit: AuditEventWriter,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     if (this.reflector.getAllAndOverride<boolean>(PUBLIC_ROUTE, [context.getHandler(), context.getClass()])) {
       return true;
     }
@@ -48,7 +57,7 @@ export class AuthorizationGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
     if (!policy) return true;
-    if (policy.sensitive) {
+    if (policy.sensitive && !isSafeMethod(request.method)) {
       const idempotencyKey = request.headers['idempotency-key'];
       if (typeof idempotencyKey !== 'string' || idempotencyKey.length < 16) {
         throw new BadRequestException(
@@ -86,6 +95,15 @@ export class AuthorizationGuard implements CanActivate {
           reasons: decision.reasons,
         }),
       );
+      await this.recordDeniedAuthorization({
+        correlationId: correlationFromHeader(correlationId),
+        subject,
+        policy,
+        resource,
+        reasons: decision.reasons,
+        sessionId: typeof request.user.sid === 'string' ? request.user.sid : undefined,
+        sourceAddress: request.ip,
+      });
       throw new ForbiddenException({
         code: 'AUTHORIZATION_DENIED',
         reasons: decision.reasons,
@@ -94,6 +112,38 @@ export class AuthorizationGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  private async recordDeniedAuthorization(input: {
+    correlationId: string;
+    subject: ReturnType<typeof authorizationSubjectFromClaims>;
+    policy: AuthorizationPolicy;
+    resource: AuthorizationResource;
+    reasons: readonly string[];
+    sessionId?: string;
+    sourceAddress?: string;
+  }): Promise<void> {
+    const occurredAt = new Date().toISOString();
+    try {
+      await this.audit.append({
+        auditEventId: randomUUID(),
+        correlationId: input.correlationId,
+        actorId: input.subject.userId,
+        technicalIdentity: 'pms-api',
+        ...(input.sessionId ? { sessionId: input.sessionId } : {}),
+        action: input.policy.operationType,
+        resourceType: 'AuthorizationDecision',
+        resourceId: authorizationResourceId(input.policy, input.resource),
+        outcome: 'DENIED',
+        businessDate: occurredAt.slice(0, 10),
+        occurredAt,
+        sourceApplication: 'pms-api',
+        ...(input.sourceAddress ? { sourceAddress: input.sourceAddress } : {}),
+        authorizedChanges: { decision: { allowed: false, reasons: input.reasons }, resource: input.resource },
+      });
+    } catch (error) {
+      this.logger.error(JSON.stringify({ event: 'authorization.denied.audit_failed', correlationId: input.correlationId, operationType: input.policy.operationType, error: error instanceof Error ? error.message : 'unknown error' }));
+    }
   }
 
   private signalReviewIfDue(
@@ -114,6 +164,14 @@ export class AuthorizationGuard implements CanActivate {
       }),
     );
   }
+}
+
+function authorizationResourceId(policy: AuthorizationPolicy, resource: AuthorizationResource): string {
+  return resource.poolId ?? resource.legalEntityId ?? resource.branchId ?? policy.operationType;
+}
+
+function isSafeMethod(method: string): boolean {
+  return ['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
 }
 
 function asOptionalString(value: unknown): string | undefined {

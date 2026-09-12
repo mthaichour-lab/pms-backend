@@ -1,0 +1,2 @@
+export const GET_CALCULATION_RUN = Symbol('GET_CALCULATION_RUN');
+export const SOLVE_QUOTATION=Symbol('SOLVE_QUOTATION');

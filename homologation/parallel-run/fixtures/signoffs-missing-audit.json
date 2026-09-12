@@ -1,0 +1,6 @@
+{
+  "signoffs": [
+    { "role": "FINANCE", "decision": "APPROVED", "signedBy": "fixture-finance", "signedAt": "2026-09-02T09:00:00Z" },
+    { "role": "SHARIA", "decision": "APPROVED", "signedBy": "fixture-sharia", "signedAt": "2026-09-02T09:10:00Z" }
+  ]
+}

@@ -33,6 +33,7 @@ describe('DocumentMessageHandler', () => {
         occurredAt: '2026-08-28T00:00:00.000Z',
         payload: {
           objectKey: 'landing/proof-1',
+          requestId: '00000000-0000-4000-8000-000000000001',
           businessType: 'SHARIA_DECISION',
           businessId: 'decision-1',
           classification: 'CONFIDENTIAL',
@@ -43,6 +44,7 @@ describe('DocumentMessageHandler', () => {
     ).resolves.toBe('PROCESSED');
 
     expect(landingStorage.load).toHaveBeenCalledWith('landing/proof-1');
+    expect(archiveDocument.execute).toHaveBeenCalledWith(expect.objectContaining({ metadata: expect.objectContaining({ archiveRequestId: '00000000-0000-4000-8000-000000000001' }) }));
     expect(inbox.complete).toHaveBeenCalledWith(
       'document-worker',
       '8e217c4d-a299-4387-a8c1-8f19944c2f1d',

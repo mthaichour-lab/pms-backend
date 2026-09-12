@@ -14,21 +14,21 @@ export class PostgresInvestmentPositionStagingRepository implements InvestmentPo
       await client.query('BEGIN');
       for (const [index, row] of rows.entries()) {
         const staged = await client.query<{
-          account_id: string; customer_token: string; product_code: string; currency_code: string;
+          account_id: string; customer_reference: string; product_code: string; currency_code: string;
           opened_on: string; business_date: string; value_date: string; balance: string;
         }>(
           `INSERT INTO integration.cbs_investment_position_staging
-             (batch_id, row_number, account_id, customer_token, product_code,
+             (batch_id, row_number, account_id, customer_reference, product_code,
               currency_code, opened_on, business_date, value_date, balance)
            VALUES ($1::uuid, $2, $3::uuid, $4, $5, $6, $7::date, $8::date, $9::date, $10::numeric)
            ON CONFLICT (batch_id, row_number) DO UPDATE SET batch_id = EXCLUDED.batch_id
-           RETURNING account_id::text, customer_token, product_code, currency_code,
+           RETURNING account_id::text, customer_reference, product_code, currency_code,
              opened_on::text, business_date::text, value_date::text, balance::text`,
-          [batchId, index + 1, row.accountId, row.customerToken, row.productCode, row.currency,
+          [batchId, index + 1, row.accountId, row.customerReference, row.productCode, row.currency,
             row.openedOn, row.businessDate, row.valueDate, row.balance],
         );
         const stored = staged.rows[0];
-        if (!stored || stored.customer_token !== row.customerToken || stored.product_code !== row.productCode ||
+        if (!stored || stored.customer_reference !== row.customerReference || stored.product_code !== row.productCode ||
           stored.account_id !== row.accountId || stored.currency_code !== row.currency ||
           stored.opened_on !== row.openedOn || stored.business_date !== row.businessDate ||
           stored.value_date !== row.valueDate || normalizeDecimal(stored.balance) !== normalizeDecimal(row.balance)) {

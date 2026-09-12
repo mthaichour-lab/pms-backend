@@ -1,0 +1,24 @@
+import type { Pool } from 'pg';
+import type { AccountingEventRepository, AcknowledgeAccountingEventCommand, EmitAccountingEventCommand } from '../../modules/accounting/application/manage-accounting-event.js';
+import type { AccountingAcknowledgementState, nextAcknowledgementState } from '../../modules/accounting/domain/accounting-lifecycle.js';
+
+export class PostgresAccountingEventRepository implements AccountingEventRepository {
+  constructor(private readonly pool: Pick<Pool, 'connect'>) {}
+  async emitAtomically(command: EmitAccountingEventCommand, sourceKey: string) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const existing = await client.query<{journal_entry_id:string}>(`SELECT journal_entry_id::text FROM accounting.journal_entry WHERE source_key=$1`,[sourceKey]);
+      if (existing.rows[0]) { await client.query('COMMIT'); return { journalEntryId: existing.rows[0].journal_entry_id, acknowledgementState: 'PENDING' as const }; }
+      const inserted = await client.query<{journal_entry_id:string}>(`INSERT INTO accounting.journal_entry(business_date,entry_kind,status,correlation_id,created_by,run_id,pool_id,product_id,source_event_type,source_event_id,source_key,issuance_status,acknowledgement_status) VALUES($1::date,'BUSINESS_EVENT','DRAFT',gen_random_uuid(),$2,$3::uuid,$4,$5::uuid,$6,$7,$8,'EMITTED','PENDING') RETURNING journal_entry_id::text`,[command.businessDate,command.actorId,command.runId,command.poolId,command.productId,command.eventType,command.eventId,sourceKey]);
+      const journalEntryId=inserted.rows[0]!.journal_entry_id;
+      for(const [index,line] of command.lines.entries()) await client.query(`INSERT INTO accounting.journal_line(journal_entry_id,line_number,account_code,currency_code,debit,credit,entity_id)VALUES($1::uuid,$2,$3,$4,$5::numeric,$6::numeric,$7)`,[journalEntryId,index+1,line.accountCode,line.currency,line.debit,line.credit,command.entityId]);
+      await client.query(`UPDATE accounting.journal_entry SET status='POSTED',posted_at=clock_timestamp() WHERE journal_entry_id=$1::uuid`,[journalEntryId]);
+      await client.query(`INSERT INTO integration.outbox_event(event_id,aggregate_type,aggregate_id,event_type,schema_version,correlation_id,payload,occurred_at)VALUES(gen_random_uuid(),'JournalEntry',$1,'AccountingEntryEmitted.v1',1,gen_random_uuid(),jsonb_build_object('journalEntryId',$1,'sourceKey',$2),clock_timestamp())`,[journalEntryId,sourceKey]);
+      await client.query('COMMIT'); return {journalEntryId,acknowledgementState:'PENDING' as const};
+    } catch(error){await client.query('ROLLBACK');throw error;} finally{client.release();}
+  }
+  async acknowledgeAtomically(command:AcknowledgeAccountingEventCommand,decide:typeof nextAcknowledgementState){
+    const client=await this.pool.connect();try{await client.query('BEGIN');const row=await client.query<{acknowledgement_status:AccountingAcknowledgementState}>(`SELECT acknowledgement_status FROM accounting.journal_entry WHERE journal_entry_id=$1::uuid FOR UPDATE`,[command.journalEntryId]);if(!row.rows[0])throw new Error('Journal entry not found');const next=decide(row.rows[0].acknowledgement_status,command.action);await client.query(`INSERT INTO accounting.posting_acknowledgement(journal_entry_id,previous_state,resulting_state,external_reference,reason,actor_id,idempotency_key)VALUES($1::uuid,$2,$3,$4,$5,$6,$7)`,[command.journalEntryId,row.rows[0].acknowledgement_status,next,command.externalReference,command.reason??null,command.actorId,command.idempotencyKey]);await client.query(`UPDATE accounting.journal_entry SET acknowledgement_status=$2 WHERE journal_entry_id=$1::uuid`,[command.journalEntryId,next]);await client.query('COMMIT');return{acknowledgementState:next};}catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+  }
+}

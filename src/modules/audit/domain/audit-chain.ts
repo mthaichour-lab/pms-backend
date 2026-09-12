@@ -38,11 +38,7 @@ export async function createSignedAuditEvent(
   previousHash: string | undefined,
   signer: AuditSigner,
 ): Promise<SignedAuditEvent> {
-  if (previousHash && !/^[a-f0-9]{64}$/.test(previousHash)) {
-    throw new TypeError('Previous audit hash is invalid');
-  }
-  const chainPayload = { ...draft, previousHash: previousHash ?? null };
-  const eventHash = createHash('sha256').update(canonicalJson(chainPayload)).digest('hex');
+  const eventHash = calculateAuditHash(draft, previousHash);
   const signature = await signer.signSha256Digest(Buffer.from(eventHash, 'hex'));
   if (signature.byteLength === 0) throw new Error('Audit signer returned an empty signature');
   return {
@@ -54,6 +50,17 @@ export async function createSignedAuditEvent(
   };
 }
 
+export function calculateAuditHash(
+  draft: AuditEventDraft,
+  previousHash: string | undefined,
+): string {
+  if (previousHash && !/^[a-f0-9]{64}$/.test(previousHash)) {
+    throw new TypeError('Previous audit hash is invalid');
+  }
+  const chainPayload = { ...draft, previousHash: previousHash ?? null };
+  return createHash('sha256').update(canonicalJson(chainPayload)).digest('hex');
+}
+
 export function verifyAuditHash(event: SignedAuditEvent): boolean {
   const {
     eventHash,
@@ -62,9 +69,7 @@ export function verifyAuditHash(event: SignedAuditEvent): boolean {
     previousHash,
     ...draft
   } = event;
-  const expected = createHash('sha256')
-    .update(canonicalJson({ ...draft, previousHash: previousHash ?? null }))
-    .digest('hex');
+  const expected = calculateAuditHash(draft, previousHash);
   return eventHash === expected;
 }
 

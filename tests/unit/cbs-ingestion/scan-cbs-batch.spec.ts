@@ -9,6 +9,7 @@ const batch: CbsBatchDescriptor = {
   batchId: '17146c36-a0cb-4e0a-b095-60b67c945eb9', source: 'CBS',
   businessDate: '2026-08-28', flowType: 'BALANCES', sequence: 1, schemaVersion: 1,
   checksumSha256: createHash('sha256').update(bytes).digest('hex'), objectKey: 'batch.csv',
+  manifestRowCount: 1, manifestBalanceTotal: '100.00',
 };
 
 function repository(transition = vi.fn().mockResolvedValue(undefined)): CbsBatchRepository {
@@ -25,7 +26,7 @@ describe('ScanCbsBatch', () => {
       load: async () => ({ bytes, filename: 'batch.csv', mediaType: 'text/csv' }),
     }, { scan: async () => ({ clean: true }) });
     await expect(useCase.execute(batch)).resolves.toMatchObject({ state: 'SCANNED' });
-    expect(transition).toHaveBeenCalledWith(batch.batchId, 'RECEIVED', 'SCANNED');
+    expect(transition).toHaveBeenCalledWith(batch.batchId, 'AUTHENTICATED', 'SCANNED');
   });
 
   it('quarantines a checksum mismatch without invoking antivirus', async () => {
@@ -36,6 +37,6 @@ describe('ScanCbsBatch', () => {
     }, { scan });
     await expect(useCase.execute(batch)).resolves.toEqual({ state: 'QUARANTINED' });
     expect(scan).not.toHaveBeenCalled();
-    expect(transition).toHaveBeenCalledWith(batch.batchId, 'RECEIVED', 'QUARANTINED', 'CHECKSUM_MISMATCH');
+    expect(transition).toHaveBeenCalledWith(batch.batchId, 'AUTHENTICATED', 'QUARANTINED', 'CHECKSUM_MISMATCH');
   });
 });

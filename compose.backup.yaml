@@ -1,0 +1,71 @@
+x-backup-service: &backup-service
+  image: postgres:16-alpine
+  restart: "no"
+  read_only: true
+  tmpfs: [/tmp:size=64m, mode=1777]
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  volumes:
+    - ${PMS_BACKUP_DIRECTORY:?set PMS_BACKUP_DIRECTORY}:/backups
+
+x-backup-command: &backup-command
+  - /bin/sh
+  - -euc
+  - |
+    umask 077
+    echo "$${BACKUP_ID}" | grep -Eq '^[0-9]{8}T[0-9]{6}Z$'
+    archive="/backups/$${BACKUP_KIND}-$${BACKUP_ID}.dump"
+    pg_dump "$${SOURCE_DATABASE_URL}" --format=custom --compress=9 --no-owner --no-acl --file="$${archive}"
+    sha256sum "$${archive}" > "$${archive}.sha256"
+    pg_restore --list "$${archive}" >/dev/null
+    echo "backup verified: $${archive}"
+
+x-restore-command: &restore-command
+  - /bin/sh
+  - -euc
+  - |
+    test "$${DR_RESTORE_CONFIRM}" = "RESTORE_ISOLATED_TARGET"
+    archive="/backups/$${BACKUP_KIND}-$${BACKUP_ID}.dump"
+    sha256sum -c "$${archive}.sha256"
+    pg_restore --list "$${archive}" >/dev/null
+    pg_restore "$${archive}" --dbname="$${TARGET_DATABASE_URL}" --clean --if-exists --no-owner --no-acl --exit-on-error
+    echo "isolated restore complete: $${BACKUP_KIND}"
+
+services:
+  backup-core:
+    <<: *backup-service
+    profiles: [backup]
+    environment:
+      BACKUP_KIND: core
+      BACKUP_ID: ${BACKUP_ID:?set BACKUP_ID as YYYYMMDDTHHMMSSZ}
+      SOURCE_DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+    entrypoint: *backup-command
+
+  backup-token-vault:
+    <<: *backup-service
+    profiles: [backup]
+    environment:
+      BACKUP_KIND: token-vault
+      BACKUP_ID: ${BACKUP_ID:?set BACKUP_ID as YYYYMMDDTHHMMSSZ}
+      SOURCE_DATABASE_URL: ${TOKEN_VAULT_DATABASE_URL:?set TOKEN_VAULT_DATABASE_URL}
+    entrypoint: *backup-command
+
+  restore-core:
+    <<: *backup-service
+    profiles: [restore]
+    environment:
+      BACKUP_KIND: core
+      BACKUP_ID: ${BACKUP_ID:?set BACKUP_ID as YYYYMMDDTHHMMSSZ}
+      TARGET_DATABASE_URL: ${CORE_RESTORE_DATABASE_URL:?set isolated CORE_RESTORE_DATABASE_URL}
+      DR_RESTORE_CONFIRM: ${DR_RESTORE_CONFIRM:?set DR_RESTORE_CONFIRM}
+    entrypoint: *restore-command
+
+  restore-token-vault:
+    <<: *backup-service
+    profiles: [restore]
+    environment:
+      BACKUP_KIND: token-vault
+      BACKUP_ID: ${BACKUP_ID:?set BACKUP_ID as YYYYMMDDTHHMMSSZ}
+      TARGET_DATABASE_URL: ${TOKEN_VAULT_RESTORE_DATABASE_URL:?set isolated TOKEN_VAULT_RESTORE_DATABASE_URL}
+      DR_RESTORE_CONFIRM: ${DR_RESTORE_CONFIRM:?set DR_RESTORE_CONFIRM}
+    entrypoint: *restore-command

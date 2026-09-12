@@ -8,8 +8,10 @@ const outputUrl = new URL(
 const contract = JSON.parse(await readFile(contractUrl, 'utf8'));
 
 function typeFor(schema) {
+  if (Array.isArray(schema.allOf)) return schema.allOf.map(typeFor).join(' & ');
   if (schema.$ref) return schema.$ref.split('/').at(-1);
   if (schema.const !== undefined) return JSON.stringify(schema.const);
+  if (Array.isArray(schema.type)) return schema.type.map((type) => type === 'null' ? 'null' : typeFor({ ...schema, type })).join(' | ');
   if (schema.type === 'integer' || schema.type === 'number') return 'number';
   if (schema.type === 'boolean') return 'boolean';
   if (schema.type === 'array') return `readonly ${typeFor(schema.items)}[]`;
@@ -54,4 +56,3 @@ if (process.argv.includes('--check')) {
   await writeFile(outputUrl, content, 'utf8');
   console.log('Generated SDK schema updated.');
 }
-

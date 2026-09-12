@@ -1,0 +1,33 @@
+name: Quarterly isolated DR restore
+on:
+  schedule:
+    - cron: '0 2 1 1,4,7,10 *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  restore-drill:
+    runs-on: ubuntu-latest
+    environment: dr-isolated
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.24.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm dr:exercise
+        env:
+          DR_MODE: ISOLATED_RESTORE_TEST
+          CORE_DR_URL: ${{ secrets.CORE_DR_URL }}
+          TOKEN_VAULT_DR_URL: ${{ secrets.TOKEN_VAULT_DR_URL }}
+          DR_CONTROL_TOKEN: ${{ secrets.DR_CONTROL_TOKEN }}
+          DR_RPO_TARGET_MS: 300000
+          DR_RTO_TARGET_MS: 3600000
+      - run: pnpm dr:verify
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dr-failover-evidence
+          path: deploy/dr/results/latest-failover-drill.json
+          retention-days: 365

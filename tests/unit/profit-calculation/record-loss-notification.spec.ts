@@ -1,0 +1,8 @@
+import{describe,expect,it,vi}from'vitest';
+import{RecordLossNotification}from'../../../src/modules/profit-calculation/application/record-loss-notification.js';
+const ids={lossEventId:'17146c36-a0cb-4e0a-b095-60b67c945eb9',notificationId:'27146c36-a0cb-4e0a-b095-60b67c945eb9',runId:'37146c36-a0cb-4e0a-b095-60b67c945eb9',accountId:'47146c36-a0cb-4e0a-b095-60b67c945eb9'};
+describe('RecordLossNotification',()=>{
+  it('prouve explicitement que le compte est protégé lorsque la banque absorbe la perte',async()=>{const repository={save:vi.fn().mockResolvedValue({status:'RECORDED'})};await new RecordLossNotification(repository).execute({...ids,cause:'MANDATE_VIOLATION',liability:'BANK',accountImpact:'0.00',currencyCode:'DZD'});expect(repository.save).toHaveBeenCalledWith(expect.objectContaining({notificationType:'ACCOUNT_PROTECTED',messageCode:'LOSS_ABSORBED_BY_BANK_ACCOUNT_UNAFFECTED',explanationSnapshot:expect.objectContaining({accountImpact:'0.00'})}));});
+  it('distingue une perte affectant réellement le compte',async()=>{const repository={save:vi.fn().mockResolvedValue({status:'RECORDED'})};await new RecordLossNotification(repository).execute({...ids,cause:'ORDINARY_MARKET_LOSS',liability:'INVESTORS',accountImpact:'25.50',currencyCode:'DZD'});expect(repository.save).toHaveBeenCalledWith(expect.objectContaining({notificationType:'ACCOUNT_AFFECTED',messageCode:'LOSS_ALLOCATED_TO_INVESTOR_ACCOUNT'}));});
+  it('interdit tout impact client pour une perte imputée à la banque',()=>{const service=new RecordLossNotification({save:vi.fn()});expect(()=>service.execute({...ids,cause:'SHARIA_NON_COMPLIANCE',liability:'BANK',accountImpact:'1.00',currencyCode:'DZD'})).toThrow('cannot affect');});
+});

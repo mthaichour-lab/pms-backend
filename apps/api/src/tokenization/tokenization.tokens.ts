@@ -1,0 +1,1 @@
+export const MANAGE_TOKENIZATION = Symbol('MANAGE_TOKENIZATION');

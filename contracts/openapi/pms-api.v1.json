@@ -5,23 +5,1960 @@
     "version": "1.0.0",
     "description": "Contrat initial publié par pms-backend pour le BFF pms-frontend."
   },
-  "servers": [{ "url": "/api" }],
-  "security": [{ "keycloakBearer": [] }],
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
+  "security": [
+    {
+      "keycloakBearer": []
+    }
+  ],
   "paths": {
+    "/accounting/opening-balances/certifications": {
+      "post": {
+        "operationId": "certifyOpeningBalances",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "certificationId",
+                  "signedAt",
+                  "lines"
+                ],
+                "properties": {
+                  "certificationId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "signedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "lines": {
+                    "type": "array",
+                    "minItems": 4,
+                    "maxItems": 4,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "component",
+                        "currencyCode",
+                        "migratedAmount",
+                        "generalLedgerAmount",
+                        "evidenceReference"
+                      ],
+                      "properties": {
+                        "component": {
+                          "type": "string",
+                          "enum": [
+                            "HISTORICAL_ACCOUNTS",
+                            "PER",
+                            "IRR",
+                            "PAST_DISTRIBUTIONS"
+                          ]
+                        },
+                        "currencyCode": {
+                          "type": "string",
+                          "pattern": "^[A-Z]{3}$"
+                        },
+                        "migratedAmount": {
+                          "type": "string"
+                        },
+                        "generalLedgerAmount": {
+                          "type": "string"
+                        },
+                        "evidenceReference": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Soldes d'ouverture rapprochés et certifiés par Finance"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/simulations": {
+      "post": {
+        "operationId": "solveQuotationTarget",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "placementAmount",
+                  "targetNetRatePercent",
+                  "basis"
+                ],
+                "properties": {
+                  "placementAmount": {
+                    "type": "string"
+                  },
+                  "targetNetRatePercent": {
+                    "type": "string"
+                  },
+                  "basis": {
+                    "type": "object",
+                    "required": [
+                      "type"
+                    ],
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "GLOBAL_POOL",
+                          "FINANCING_TYPE",
+                          "DESIGNATED_FINANCING",
+                          "CUSTOMER",
+                          "SECTOR"
+                        ]
+                      },
+                      "reference": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Verdict réconcilié calculé exclusivement par le moteur serveur"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/purifications": {
+      "post": {
+        "operationId": "identifyPurification",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurificationCase"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Revenu isolé de la distribution"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/purifications/{purificationId}/document": {
+      "post": {
+        "operationId": "documentPurification",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "purificationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "charityBeneficiaryId",
+                  "shariaDecisionReference"
+                ],
+                "properties": {
+                  "charityBeneficiaryId": {
+                    "type": "string"
+                  },
+                  "shariaDecisionReference": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Purification documentée"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/purifications/{purificationId}/payments": {
+      "post": {
+        "operationId": "payPurification",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "purificationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "amount",
+                  "evidenceId"
+                ],
+                "properties": {
+                  "amount": {
+                    "type": "string"
+                  },
+                  "evidenceId": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Versement caritatif enregistré"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/purifications/statement": {
+      "get": {
+        "operationId": "getPurificationStatement",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "poolId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "État périodique constaté, reporté, versé et solde"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/charges/policies": {
+      "post": {
+        "operationId": "configureChargePolicy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChargePolicy"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Politique versionnée"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/charges/imports": {
+      "post": {
+        "operationId": "importPoolCharge",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PoolCharge"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Charge importée"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/charges/evaluation": {
+      "get": {
+        "operationId": "evaluatePoolCharges",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "poolId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "businessDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Charges déductibles et rejetées"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/revenues": {
+      "get": {
+        "operationId": "listRecognizedIncome",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "poolId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "businessDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revenus qualifiés",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecognizedIncome"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/revenues/imports": {
+      "post": {
+        "operationId": "importRecognizedIncome",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecognizedIncome"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Revenu importé sans doublon"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/revenues/adjustments": {
+      "post": {
+        "operationId": "adjustRecognizedIncome",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncomeAdjustment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Ajustement approuvé append-only"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/investment-pools/assets/{assetId}/anomalies": {
+      "get": {
+        "operationId": "listAssetAnomalies",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Anomalies actives et résolues",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AssetAnomaly"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "reportAssetAnomaly",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetAnomaly"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Actif isolé"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/investment-pools/assets/{assetId}/anomalies/{anomalyId}/resolve": {
+      "post": {
+        "operationId": "resolveAssetAnomaly",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "anomalyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resolvedAt",
+                  "resolutionEvidenceId"
+                ],
+                "properties": {
+                  "resolvedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "resolutionEvidenceId": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Anomalie résolue avec preuve"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/investment-pools/{poolId}/allocations/simulate": {
+      "post": {
+        "operationId": "simulateAssetAllocation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "poolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetAllocation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Simulation sans mutation"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/investment-pools/{poolId}/allocations": {
+      "post": {
+        "operationId": "allocateAssetToPool",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "poolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetAllocation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Allocation effective-datée"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/investment-pools/assets/{assetId}/allocations": {
+      "get": {
+        "operationId": "getAssetAllocationHistory",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "asOf",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historique des allocations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AssetAllocation"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/investment-pools/{poolId}/compositions": {
+      "post": {
+        "operationId": "recordPoolComposition",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "poolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PoolCompositionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Photographie quotidienne enregistrée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoolCompositionSnapshot"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/investment-pools/{poolId}/compositions/{businessDate}": {
+      "get": {
+        "operationId": "getPoolComposition",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "poolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "businessDate",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Photographie historique immuable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoolCompositionSnapshot"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/investment-pools": {
+      "post": {
+        "operationId": "createInvestmentPool",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvestmentPool"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pool créé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentPool"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/investment-pools/{poolId}": {
+      "get": {
+        "operationId": "getInvestmentPool",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "poolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Composition séparée du pool",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentPool"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/investment-pools/{poolId}/{action}": {
+      "post": {
+        "operationId": "transitionInvestmentPool",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          { "name": "poolId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[A-Z0-9_-]{2,32}$" } },
+          { "name": "action", "in": "path", "required": true, "schema": { "type": "string", "enum": ["activate", "suspend", "close"] } }
+        ],
+        "responses": {
+          "200": { "description": "Cycle de vie du pool transitionne", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InvestmentPool" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/investment-pools/{poolId}/funding-sources": {
+      "post": {
+        "operationId": "addInvestmentPoolFunding",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "poolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PoolFundingSource"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Source ajoutée"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/investment-accounts/subscriptions": {
+      "post": {
+        "operationId": "createInvestmentSubscription",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvestmentSubscription"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pré-simulation créée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentSubscription"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/investment-accounts/subscriptions/{accountId}/actions": {
+      "post": {
+        "operationId": "transitionInvestmentSubscription",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvestmentSubscriptionAction"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transition enregistrée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentSubscription"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/customers": {
+      "post": {
+        "operationId": "createCustomerProfile",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerProfile"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Fiche client tokenisée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerProfile"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/customers/{customerId}": {
+      "get": {
+        "operationId": "getCustomerProfile",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "customerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Fiche client et restrictions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerProfile"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/customers/{customerId}/restrictions": {
+      "post": {
+        "operationId": "addCustomerRestriction",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "customerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LegalRestriction"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Restriction ajoutée"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/customers/{customerId}/restrictions/{restrictionId}/lift": {
+      "post": {
+        "operationId": "liftCustomerRestriction",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          { "name": "customerId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "restrictionId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["liftedAt"], "properties": { "liftedAt": { "type": "string", "format": "date" } }, "additionalProperties": false } } } },
+        "responses": {
+          "200": { "description": "Restriction levee", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CustomerProfile" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/cbs/data-quality/batches": {
+      "get": {
+        "operationId": "listCbsDataQualityBatches",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "businessDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lots CBS et synthèse des contrôles qualité",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CbsDataQualityBatch"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tokenization/tokenize": {
+      "post": {
+        "operationId": "tokenizePersonalData",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenizeCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Valeur tokenisée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenizedValue"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tokenization/tokenize-batch": {
+      "post": {
+        "operationId": "tokenizePersonalDataBatch",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenizeBatchCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lot tokenisé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TokenizedValue"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tokenization/detokenize": {
+      "post": {
+        "operationId": "detokenizePersonalData",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenOperationCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Valeur en clair à usage contrôlé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetokenizedValue"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tokenization/search": {
+      "post": {
+        "operationId": "searchTokenizedData",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenSearchCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Résultat tokenisé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenizedValue"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tokenization/rotate": {
+      "post": {
+        "operationId": "rotatePersonalDataToken",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenOperationCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Token renouvelé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenizedValue"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/products": {
+      "post": {
+        "operationId": "createInvestmentProduct",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvestmentProduct"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Produit créé en brouillon",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentProduct"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/products/{productId}": {
+      "get": {
+        "operationId": "getInvestmentProduct",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Produit d'investissement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentProduct"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/products/{productId}/{action}": {
+      "post": {
+        "operationId": "transitionInvestmentProduct",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "validate",
+                "publish",
+                "suspend",
+                "resume",
+                "close"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductTransitionCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transition appliquée et auditée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentProduct"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/products/{productId}/terms/simulate": {
+      "post": {
+        "operationId": "simulateProductTerms",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductTermsDraft"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Simulation sans mutation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductTermsSimulation"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/products/{productId}/terms": {
+      "post": {
+        "operationId": "createProductTermsDraft",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductTermsDraft"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Version contractuelle en brouillon",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductTerms"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/products/{productId}/terms/{termsVersionId}/publish": {
+      "post": {
+        "operationId": "publishProductTerms",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "termsVersionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishProductTerms"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Version contractuelle publiée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductTerms"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/products/compliance-references": {
+      "post": {
+        "operationId": "createComplianceReference",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateComplianceReference"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Référence de conformité versionnée créée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceReference"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/products/{productId}/references": {
+      "get": {
+        "operationId": "listProductReferences",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Références produit ordonnées par autorité",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProductReference"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "associateProductReference",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssociateProductReference"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Référence associée"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/products/{productId}/compliance-arbitrations": {
+      "post": {
+        "operationId": "arbitrateProductCompliance",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplianceArbitration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Décision d'arbitrage append-only"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/": {
       "get": {
         "operationId": "getApiStatus",
-        "parameters": [{ "$ref": "#/components/parameters/CorrelationId" }],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
         "responses": {
           "200": {
             "description": "API disponible",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ApiStatus" }
+                "schema": {
+                  "$ref": "#/components/schemas/ApiStatus"
+                }
               }
             }
           },
-          "default": { "$ref": "#/components/responses/Problem" }
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
         }
       }
     },
@@ -29,18 +1966,26 @@
       "get": {
         "operationId": "getEffectiveCurrency",
         "parameters": [
-          { "$ref": "#/components/parameters/CorrelationId" },
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
           {
             "name": "code",
             "in": "path",
             "required": true,
-            "schema": { "type": "string", "pattern": "^[A-Z]{3}$" }
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$"
+            }
           },
           {
             "name": "businessDate",
             "in": "query",
             "required": true,
-            "schema": { "type": "string", "format": "date" }
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
           }
         ],
         "responses": {
@@ -48,11 +1993,58 @@
             "description": "Version de devise applicable à la date métier",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CurrencyDefinition" }
+                "schema": {
+                  "$ref": "#/components/schemas/CurrencyDefinition"
+                }
               }
             }
           },
-          "default": { "$ref": "#/components/responses/Problem" }
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/reference-data/regulatory-rules/{ruleCode}": {
+      "get": {
+        "operationId": "getEffectiveRegulatoryRule",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "ruleCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_.-]{2,63}$"
+            }
+          },
+          {
+            "name": "businessDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Règle réglementaire applicable à la date métier",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegulatoryRule"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
         }
       }
     },
@@ -60,18 +2052,26 @@
       "get": {
         "operationId": "getInvestmentAccountSnapshot",
         "parameters": [
-          { "$ref": "#/components/parameters/CorrelationId" },
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
           {
             "name": "accountId",
             "in": "path",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           },
           {
             "name": "businessDate",
             "in": "query",
             "required": true,
-            "schema": { "type": "string", "format": "date" }
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
           }
         ],
         "responses": {
@@ -79,25 +2079,870 @@
             "description": "Compte et dernière position applicable à la date métier",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InvestmentAccountSnapshot" }
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentAccountSnapshot"
+                }
               }
             }
           },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/calculations/{runId}": {
+      "get": {
+        "operationId": "getCalculationRun",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run de calcul et preuve de reproductibilité",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculationRun"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/calculations/{runId}/control": {
+      "post": {
+        "operationId": "controlCalculationRun",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowApprovalCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Run contrôlé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowTransition"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/calculations/{runId}/approve": {
+      "post": {
+        "operationId": "approveCalculationRun",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowApprovalCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Run approuvé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowTransition"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/closings/{closingId}/reject": {
+      "post": {
+        "operationId": "rejectClosingPeriod",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          { "name": "closingId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowApprovalCommand" } } } },
+        "responses": {
+          "200": { "description": "Cloture rejetee avec justification", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowTransition" } } } },
           "default": { "$ref": "#/components/responses/Problem" }
         }
+      }
+    },
+    "/closings/{closingId}/approve": {
+      "post": {
+        "operationId": "approveClosingPeriod",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "closingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowApprovalCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Clôture approuvée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowTransition"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounting/runs/{runId}/post": {
+      "post": {
+        "operationId": "postApprovedCalculation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowApprovalCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Run comptabilisé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingPostingResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounting/journals/{journalEntryId}/reverse": {
+      "post": {
+        "operationId": "reversePostedJournal",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "journalEntryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JournalReversalCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contrepassation comptabilisée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalReversalResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/documents/archive-requests": {
+      "post": {
+        "operationId": "requestDocumentArchive",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DocumentArchiveRequestCommand" } } } },
+        "responses": {
+          "200": { "description": "Archivage documentaire place en file", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DocumentArchiveQueued" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/documents/archive-requests/{requestId}": {
+      "get": {
+        "operationId": "getDocumentArchiveRequest",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "name": "requestId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Etat de l archivage documentaire", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DocumentArchiveRequest" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/audit/events": {
+      "get": {
+        "operationId": "getAuditTrail",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 50 } },
+          { "name": "action", "in": "query", "required": false, "schema": { "type": "string", "pattern": "^[A-Z][A-Z0-9_.:-]{0,127}$" } },
+          { "name": "resourceType", "in": "query", "required": false, "schema": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$" } },
+          { "name": "outcome", "in": "query", "required": false, "schema": { "type": "string", "enum": ["SUCCESS", "DENIED", "FAILURE"] } },
+          { "name": "correlationId", "in": "query", "required": false, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "businessDateFrom", "in": "query", "required": false, "schema": { "type": "string", "format": "date" } },
+          { "name": "businessDateTo", "in": "query", "required": false, "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": {
+          "200": { "description": "Segment chronologique du journal avec verification de la chaine de hachage", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuditTrail" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/accounting/events": {
+      "post": {
+        "operationId": "emitAccountingEvent",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountingEventCommand" } } }
+        },
+        "responses": {
+          "200": { "description": "Evenement comptable emis", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountingEventResult" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/accounting/journals/{journalEntryId}/acknowledgements": {
+      "post": {
+        "operationId": "acknowledgeAccountingEvent",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          { "name": "journalEntryId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountingAcknowledgementCommand" } } }
+        },
+        "responses": {
+          "200": { "description": "Accuse comptable mis a jour", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountingAcknowledgementResult" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/accounting/reconciliations": {
+      "post": {
+        "operationId": "reconcileGeneralLedger",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconciliationCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rapprochement historisé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconciliationResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/compliance/sharia-reviews": {
+      "post": {
+        "operationId": "submitShariaReview",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShariaReviewSubmission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Dossier Charia soumis",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShariaReviewTransition"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/compliance/sharia-reviews/{reviewId}/review": {
+      "post": {
+        "operationId": "reviewShariaCase",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "reviewId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShariaOpinion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Avis Charia enregistré",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShariaReviewTransition"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/compliance/sharia-reviews/{reviewId}/decide": {
+      "post": {
+        "operationId": "decideShariaCase",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "reviewId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShariaDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Décision Charia enregistrée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShariaReviewTransition"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/risk/dashboard/{poolId}": {
+      "get": {
+        "operationId": "getPublishedRiskDashboard",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "name": "poolId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$" } }
+        ],
+        "responses": {
+          "200": { "description": "Tableau de risque du dernier run publie", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PublishedRiskDashboard" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/risk/dcr-calculations": {
+      "post": {
+        "operationId": "calculateDcr",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DcrCalculationCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "DCR calculé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DcrCalculationResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/risk/stress-scenarios": {
+      "post": {
+        "operationId": "runStressScenario",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StressScenarioCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stress scenario exécuté",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StressScenarioResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/reporting/tenor-curves/{poolId}": {
+      "get": {
+        "operationId": "getTenorYieldCurve",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "name": "poolId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{2,64}$" } },
+          { "name": "customerToken", "in": "query", "required": false, "schema": { "type": "string", "pattern": "^tok_[A-Za-z0-9_-]{16,}$" } }
+        ],
+        "responses": {
+          "200": { "description": "Courbe de rendement par maturite issue du dernier arrete", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TenorYieldCurve" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/reporting/historical-yield-forecasts/{poolId}": {
+      "post": {
+        "operationId": "generateHistoricalYieldForecast",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          { "name": "poolId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{2,64}$" } }
+        ],
+        "responses": {
+          "200": { "description": "Prevision historique a douze mois generee", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HistoricalYieldForecast" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/reporting/profit-explanations/{runId}/accounts/{accountId}": {
+      "get": {
+        "operationId": "getProfitExplanation",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "name": "runId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "accountId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "view", "in": "query", "required": false, "schema": { "type": "string", "enum": ["SIMPLIFIED", "DETAILED"], "default": "SIMPLIFIED" } }
+        ],
+        "responses": {
+          "200": { "description": "Explication du partage publie", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProfitExplanation" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/reporting/planning-scenarios": {
+      "post": {
+        "operationId": "createPlanningScenario",
+        "parameters": [{ "$ref": "#/components/parameters/CorrelationId" }, { "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreatePlanningScenario" } } } },
+        "responses": { "200": { "description": "Scenario cree", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlanningScenarioTransition" } } } }, "default": { "$ref": "#/components/responses/Problem" } }
+      }
+    },
+    "/reporting/planning-scenarios/{scenarioId}/transitions": {
+      "post": {
+        "operationId": "transitionPlanningScenario",
+        "parameters": [{ "$ref": "#/components/parameters/CorrelationId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "name": "scenarioId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlanningScenarioTransitionCommand" } } } },
+        "responses": { "200": { "description": "Scenario transitionne", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlanningScenarioTransition" } } } }, "default": { "$ref": "#/components/responses/Problem" } }
+      }
+    },
+    "/reporting/dashboards/{audience}": {
+      "get": {
+        "operationId": "getAudienceDashboard",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          {
+            "name": "audience",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/DashboardAudience" }
+          },
+          {
+            "name": "poolId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{2,64}$" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tableau de bord certifie pour l'audience demandee",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AudienceDashboard" } } }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/reporting/exports": {
+      "post": {
+        "operationId": "createSecureExport",
+        "parameters": [{ "$ref": "#/components/parameters/CorrelationId" }, { "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateSecureExport" } } } },
+        "responses": { "200": { "description": "Demande d’export créée", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SecureExportTransition" } } } }, "default": { "$ref": "#/components/responses/Problem" } }
+      }
+    },
+    "/reporting/exports/{exportId}/approvals": {
+      "post": {
+        "operationId": "approveSecureExport",
+        "parameters": [{ "$ref": "#/components/parameters/CorrelationId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "name": "exportId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Export massif approuvé", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SecureExportApproval" } } } }, "default": { "$ref": "#/components/responses/Problem" } }
+      }
+    },
+    "/reporting/exports/{exportId}/generation": {
+      "post": {
+        "operationId": "generateSecureExport",
+        "parameters": [{ "$ref": "#/components/parameters/CorrelationId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "name": "exportId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SecureExportGeneration" } } } },
+        "responses": { "200": { "description": "Export sécurisé généré", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GeneratedSecureExport" } } } }, "default": { "$ref": "#/components/responses/Problem" } }
+      }
+    },
+    "/reporting/regulatory-reports/generate": {
+      "post": {
+        "operationId": "generateRegulatoryReport",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegulatoryReportGeneration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rapport réglementaire généré",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneratedRegulatoryReport"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/reporting/regulatory-reports/{regulatoryReportId}/publish": {
+      "post": {
+        "operationId": "publishRegulatoryReport",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "regulatoryReportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegulatoryReportPublication"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rapport réglementaire publié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegulatoryReportTransition"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/exceptions": {
+      "post": {
+        "operationId": "createExceptionCase",
+        "parameters": [{ "$ref": "#/components/parameters/CorrelationId" }, { "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateExceptionCase" } } } },
+        "responses": { "201": { "description": "Exception détectée", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExceptionTransition" } } } }, "default": { "$ref": "#/components/responses/Problem" } }
+      }
+    },
+    "/exceptions/{exceptionId}/transitions": {
+      "post": {
+        "operationId": "transitionExceptionCase",
+        "parameters": [{ "$ref": "#/components/parameters/CorrelationId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "name": "exceptionId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExceptionTransitionCommand" } } } },
+        "responses": { "201": { "description": "Exception transitionnée", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExceptionTransition" } } } }, "default": { "$ref": "#/components/responses/Problem" } }
       }
     },
     "/pools/{poolId}/operations/approve": {
       "post": {
         "operationId": "approvePoolOperation",
         "parameters": [
-          { "$ref": "#/components/parameters/CorrelationId" },
-          { "$ref": "#/components/parameters/IdempotencyKey" },
+          {
+            "$ref": "#/components/parameters/CorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
           {
             "name": "poolId",
             "in": "path",
             "required": true,
-            "schema": { "type": "string", "minLength": 1 }
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         ],
         "requestBody": {
@@ -121,7 +2966,9 @@
               }
             }
           },
-          "default": { "$ref": "#/components/responses/Problem" }
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
         }
       }
     }
@@ -139,13 +2986,20 @@
         "name": "X-Correlation-ID",
         "in": "header",
         "required": true,
-        "schema": { "type": "string", "format": "uuid" }
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
       },
       "IdempotencyKey": {
         "name": "Idempotency-Key",
         "in": "header",
         "required": true,
-        "schema": { "type": "string", "minLength": 16, "maxLength": 128 }
+        "schema": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 128
+        }
       }
     },
     "responses": {
@@ -153,52 +3007,2391 @@
         "description": "Erreur normalisée RFC 9457",
         "content": {
           "application/problem+json": {
-            "schema": { "$ref": "#/components/schemas/Problem" }
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
           }
         }
       }
     },
     "schemas": {
+      "PurificationCase": {
+        "type": "object",
+        "required": [
+          "purificationId",
+          "incomeId",
+          "poolId",
+          "businessDate",
+          "currency",
+          "amount",
+          "reason",
+          "status",
+          "paidAmount"
+        ],
+        "properties": {
+          "purificationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "incomeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "poolId": {
+            "type": "string"
+          },
+          "businessDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "charityBeneficiaryId": {
+            "type": "string"
+          },
+          "shariaDecisionReference": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_DOCUMENTATION",
+              "READY",
+              "PAID"
+            ]
+          },
+          "paidAmount": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChargePolicy": {
+        "type": "object",
+        "required": [
+          "policyId",
+          "categoryCode",
+          "responsibility",
+          "effectiveFrom",
+          "version"
+        ],
+        "properties": {
+          "policyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "categoryCode": {
+            "type": "string"
+          },
+          "responsibility": {
+            "type": "string",
+            "enum": [
+              "POOL",
+              "MUDARIB",
+              "OTHER"
+            ]
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "shariaApprovalId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "PoolCharge": {
+        "type": "object",
+        "required": [
+          "chargeId",
+          "poolId",
+          "categoryCode",
+          "businessDate",
+          "currency",
+          "amount",
+          "sourceReference"
+        ],
+        "properties": {
+          "chargeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "poolId": {
+            "type": "string"
+          },
+          "categoryCode": {
+            "type": "string"
+          },
+          "businessDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "sourceReference": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecognizedIncome": {
+        "type": "object",
+        "required": [
+          "incomeId",
+          "sourceSystem",
+          "sourceReference",
+          "assetId",
+          "poolId",
+          "businessDate",
+          "currency",
+          "amount",
+          "cashStatus",
+          "realizationStatus",
+          "incomeType"
+        ],
+        "properties": {
+          "incomeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceSystem": {
+            "type": "string"
+          },
+          "sourceReference": {
+            "type": "string"
+          },
+          "assetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "poolId": {
+            "type": "string"
+          },
+          "businessDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "cashStatus": {
+            "type": "string",
+            "enum": [
+              "ACCRUED",
+              "RECEIVED"
+            ]
+          },
+          "realizationStatus": {
+            "type": "string",
+            "enum": [
+              "REALIZED",
+              "UNREALIZED"
+            ]
+          },
+          "incomeType": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "IncomeAdjustment": {
+        "type": "object",
+        "required": [
+          "adjustmentId",
+          "incomeId",
+          "amount",
+          "reason",
+          "approvalId",
+          "businessDate",
+          "actorId"
+        ],
+        "properties": {
+          "adjustmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "incomeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10
+          },
+          "approvalId": {
+            "type": "string"
+          },
+          "businessDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "actorId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AssetAnomaly": {
+        "type": "object",
+        "required": [
+          "anomalyId",
+          "kind",
+          "reason",
+          "detectedAt",
+          "status"
+        ],
+        "properties": {
+          "anomalyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "assetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "SHARIA",
+              "ACCOUNTING"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "detectedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "RESOLVED"
+            ]
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolutionEvidenceId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AssetAllocation": {
+        "type": "object",
+        "required": [
+          "allocationId",
+          "assetId",
+          "percentage",
+          "effectiveFrom",
+          "justification"
+        ],
+        "properties": {
+          "allocationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "assetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "poolId": {
+            "type": "string"
+          },
+          "percentage": {
+            "type": "string"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "justification": {
+            "type": "string",
+            "minLength": 10
+          },
+          "approvalId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CompositionBucket": {
+        "type": "object",
+        "required": [
+          "bucket",
+          "amount"
+        ],
+        "properties": {
+          "bucket": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PoolCompositionInput": {
+        "type": "object",
+        "required": [
+          "businessDate",
+          "currency",
+          "bankEquity",
+          "iahRestricted",
+          "iahUnrestricted",
+          "investedAmount",
+          "maturityGaps",
+          "currencyGaps"
+        ],
+        "properties": {
+          "businessDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "bankEquity": {
+            "type": "string"
+          },
+          "iahRestricted": {
+            "type": "string"
+          },
+          "iahUnrestricted": {
+            "type": "string"
+          },
+          "investedAmount": {
+            "type": "string"
+          },
+          "maturityGaps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompositionBucket"
+            }
+          },
+          "currencyGaps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompositionBucket"
+            }
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PoolCompositionSnapshot": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PoolCompositionInput"
+          },
+          {
+            "type": "object",
+            "required": [
+              "poolId",
+              "totalResources",
+              "uninvestedLiquidity",
+              "checksumSha256",
+              "certified"
+            ],
+            "properties": {
+              "poolId": {
+                "type": "string"
+              },
+              "totalResources": {
+                "type": "string"
+              },
+              "uninvestedLiquidity": {
+                "type": "string"
+              },
+              "checksumSha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "certified": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      },
+      "PoolFundingSource": {
+        "type": "object",
+        "required": [
+          "sourceId",
+          "type",
+          "amount",
+          "mandateAssetCodes"
+        ],
+        "properties": {
+          "sourceId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "BANK_EQUITY",
+              "IAH_RESTRICTED",
+              "IAH_UNRESTRICTED"
+            ]
+          },
+          "amount": {
+            "type": "string"
+          },
+          "mandateAssetCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateInvestmentPool": {
+        "type": "object",
+        "required": [
+          "poolId",
+          "displayName",
+          "currency",
+          "strategyCode",
+          "validFrom",
+          "eligibleAssetCodes",
+          "mudaribProfitShare"
+        ],
+        "properties": {
+          "poolId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "strategyCode": {
+            "type": "string"
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "validUntil": {
+            "type": "string",
+            "format": "date"
+          },
+          "eligibleAssetCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mudaribProfitShare": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InvestmentPool": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CreateInvestmentPool"
+          },
+          {
+            "type": "object",
+            "required": [
+              "status",
+              "fundingSources"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "ACTIVE",
+                  "SUSPENDED",
+                  "CLOSED"
+                ]
+              },
+              "fundingSources": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PoolFundingSource"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "CreateInvestmentSubscription": {
+        "type": "object",
+        "required": [
+          "accountId",
+          "customerId",
+          "productId",
+          "productTermsVersionId",
+          "contractVersion",
+          "investorNisba",
+          "bankNisba",
+          "currency"
+        ],
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "customerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productTermsVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "contractVersion": {
+            "type": "string"
+          },
+          "investorNisba": {
+            "type": "string"
+          },
+          "bankNisba": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "maturityDate": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InvestmentSubscriptionAction": {
+        "type": "object",
+        "required": [
+          "type",
+          "businessDate"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "START",
+              "ACCEPT",
+              "ACTIVATE",
+              "DEPOSIT",
+              "WITHDRAW",
+              "BLOCK",
+              "UNBLOCK",
+              "RENEW",
+              "MATURE",
+              "SUCCESSION",
+              "CLOSE"
+            ]
+          },
+          "businessDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "maturityDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "caseReference": {
+            "type": "string"
+          },
+          "acceptedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nonGuaranteeAccepted": {
+            "type": "boolean"
+          },
+          "profitSharingMethodAccepted": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InvestmentSubscription": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CreateInvestmentSubscription"
+          },
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "PRE_SIMULATION",
+                  "PENDING_SUBSCRIPTION",
+                  "ACTIVE",
+                  "BLOCKED",
+                  "MATURED",
+                  "SUCCESSION",
+                  "CLOSED"
+                ]
+              },
+              "openedOn": {
+                "type": "string",
+                "format": "date"
+              },
+              "closedOn": {
+                "type": "string",
+                "format": "date"
+              }
+            }
+          }
+        ]
+      },
+      "LegalRestriction": {
+        "type": "object",
+        "required": [
+          "restrictionId",
+          "kind",
+          "reason",
+          "effectiveFrom"
+        ],
+        "properties": {
+          "restrictionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "SEIZURE",
+              "OPPOSITION",
+              "BLOCK"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "liftedAt": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CustomerProfile": {
+        "type": "object",
+        "required": [
+          "customerId",
+          "identityToken",
+          "beneficialOwnerTokens",
+          "representativeTokens",
+          "segment",
+          "kycStatus",
+          "legalForm",
+          "sectorCode",
+          "branchCode",
+          "restrictions"
+        ],
+        "properties": {
+          "customerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "identityToken": {
+            "type": "string",
+            "pattern": "^tok_[A-Za-z0-9_-]{16,128}$"
+          },
+          "beneficialOwnerTokens": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "representativeTokens": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "segment": {
+            "type": "string",
+            "enum": [
+              "RETAIL",
+              "SME",
+              "CORPORATE",
+              "INSTITUTIONAL"
+            ]
+          },
+          "kycStatus": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "VERIFIED",
+              "EXPIRED",
+              "REJECTED"
+            ]
+          },
+          "legalForm": {
+            "type": "string"
+          },
+          "sectorCode": {
+            "type": "string"
+          },
+          "branchCode": {
+            "type": "string"
+          },
+          "restrictions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LegalRestriction"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "CbsDataQualityBatch": {
+        "type": "object",
+        "required": [
+          "batchId",
+          "sourceCode",
+          "businessDate",
+          "flowType",
+          "sequenceNumber",
+          "state",
+          "errorCount",
+          "warningCount"
+        ],
+        "properties": {
+          "batchId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceCode": {
+            "type": "string"
+          },
+          "businessDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "flowType": {
+            "type": "string"
+          },
+          "sequenceNumber": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "manifestRowCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "manifestBalanceTotal": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "errorCount": {
+            "type": "integer"
+          },
+          "warningCount": {
+            "type": "integer"
+          },
+          "lastControlAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TokenizeCommand": {
+        "type": "object",
+        "required": [
+          "value",
+          "dataClass",
+          "purpose"
+        ],
+        "properties": {
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "writeOnly": true
+          },
+          "dataClass": {
+            "$ref": "#/components/schemas/PersonalDataClass"
+          },
+          "purpose": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{4,63}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TokenizeBatchCommand": {
+        "type": "object",
+        "required": [
+          "values",
+          "dataClass",
+          "purpose"
+        ],
+        "properties": {
+          "values": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096,
+              "writeOnly": true
+            }
+          },
+          "dataClass": {
+            "$ref": "#/components/schemas/PersonalDataClass"
+          },
+          "purpose": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{4,63}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TokenOperationCommand": {
+        "type": "object",
+        "required": [
+          "token",
+          "purpose"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "pattern": "^tok_[A-Za-z0-9_-]{16,128}$"
+          },
+          "purpose": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{4,63}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TokenSearchCommand": {
+        "type": "object",
+        "required": [
+          "searchDigestSha256",
+          "dataClass",
+          "purpose"
+        ],
+        "properties": {
+          "searchDigestSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "dataClass": {
+            "$ref": "#/components/schemas/PersonalDataClass"
+          },
+          "purpose": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{4,63}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PersonalDataClass": {
+        "type": "string",
+        "enum": [
+          "CUSTOMER_ID",
+          "NATIONAL_ID",
+          "ACCOUNT_HOLDER_NAME",
+          "CONTACT"
+        ]
+      },
+      "TokenizedValue": {
+        "type": "object",
+        "required": [
+          "token",
+          "dataClass",
+          "vaultKeyVersion"
+        ],
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "dataClass": {
+            "$ref": "#/components/schemas/PersonalDataClass"
+          },
+          "vaultKeyVersion": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DetokenizedValue": {
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "type": "string",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateInvestmentProduct": {
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "investorNisba",
+          "bankNisba"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_-]{2,32}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 3
+          },
+          "investorNisba": {
+            "type": "string",
+            "pattern": "^(?:0|[1-9][0-9]{0,2})(?:\\.[0-9]{1,6})?$"
+          },
+          "bankNisba": {
+            "type": "string",
+            "pattern": "^(?:0|[1-9][0-9]{0,2})(?:\\.[0-9]{1,6})?$"
+          },
+          "shariaReference": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProductTransitionCommand": {
+        "type": "object",
+        "required": [
+          "justification"
+        ],
+        "properties": {
+          "justification": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000
+          }
+        },
+        "additionalProperties": false
+      },
+      "InvestmentProduct": {
+        "type": "object",
+        "required": [
+          "productId",
+          "code",
+          "name",
+          "investorNisba",
+          "bankNisba",
+          "status"
+        ],
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "investorNisba": {
+            "type": "string"
+          },
+          "bankNisba": {
+            "type": "string"
+          },
+          "shariaReference": {
+            "type": "string"
+          },
+          "validatedBy": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "VALIDATED",
+              "PUBLISHED",
+              "SUSPENDED",
+              "CLOSED"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProductTermsDraft": {
+        "type": "object",
+        "required": [
+          "effectiveFrom",
+          "investorNisba",
+          "bankNisba"
+        ],
+        "properties": {
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "investorNisba": {
+            "type": "string"
+          },
+          "bankNisba": {
+            "type": "string"
+          },
+          "indicativeTargetRate": {
+            "type": "string",
+            "description": "Taux cible indicatif et non garanti"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProductTermsSimulation": {
+        "type": "object",
+        "required": [
+          "simulationChecksumSha256",
+          "valid",
+          "notice"
+        ],
+        "properties": {
+          "simulationChecksumSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "valid": {
+            "type": "boolean",
+            "const": true
+          },
+          "notice": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PublishProductTerms": {
+        "type": "object",
+        "required": [
+          "businessDate",
+          "simulationChecksumSha256",
+          "justification"
+        ],
+        "properties": {
+          "businessDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "simulationChecksumSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "retroactiveApprovalId": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 128
+          },
+          "justification": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProductTerms": {
+        "type": "object",
+        "required": [
+          "termsVersionId",
+          "productId",
+          "version",
+          "effectiveFrom",
+          "investorNisba",
+          "bankNisba",
+          "status",
+          "createdBy"
+        ],
+        "properties": {
+          "termsVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "investorNisba": {
+            "type": "string"
+          },
+          "bankNisba": {
+            "type": "string"
+          },
+          "indicativeTargetRate": {
+            "type": "string",
+            "description": "Taux cible indicatif et non garanti"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "RETIRED"
+            ]
+          },
+          "simulationChecksumSha256": {
+            "type": "string"
+          },
+          "retroactiveApprovalId": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateComplianceReference": {
+        "type": "object",
+        "required": [
+          "source",
+          "referenceCode",
+          "version",
+          "title",
+          "effectiveFrom"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "BA",
+              "SHARIA_COMMITTEE",
+              "AAOIFI",
+              "IFSB"
+            ]
+          },
+          "referenceCode": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ComplianceReference": {
+        "type": "object",
+        "required": [
+          "referenceId",
+          "source",
+          "referenceCode",
+          "version",
+          "title",
+          "effectiveFrom",
+          "createdBy"
+        ],
+        "properties": {
+          "referenceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "BA",
+              "SHARIA_COMMITTEE",
+              "AAOIFI",
+              "IFSB"
+            ]
+          },
+          "referenceCode": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "createdBy": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProductReference": {
+        "type": "object",
+        "required": [
+          "referenceId",
+          "source",
+          "referenceCode",
+          "version",
+          "title",
+          "effectiveFrom",
+          "createdBy",
+          "kind",
+          "associatedAt"
+        ],
+        "properties": {
+          "referenceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "BA",
+              "SHARIA_COMMITTEE",
+              "AAOIFI",
+              "IFSB"
+            ]
+          },
+          "referenceCode": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "CONTRACTUAL_DOCUMENT",
+              "REGULATORY_DOCUMENT",
+              "SHARIA_DOCUMENT",
+              "ACCOUNTING_SCHEMA"
+            ]
+          },
+          "associatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AssociateProductReference": {
+        "type": "object",
+        "required": [
+          "referenceId",
+          "kind"
+        ],
+        "properties": {
+          "referenceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "CONTRACTUAL_DOCUMENT",
+              "REGULATORY_DOCUMENT",
+              "SHARIA_DOCUMENT",
+              "ACCOUNTING_SCHEMA"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegulatoryRule": {
+        "type": "object",
+        "required": [
+          "ruleCode",
+          "version",
+          "authority",
+          "legalReference",
+          "effectiveFrom",
+          "parameters"
+        ],
+        "properties": {
+          "ruleCode": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "authority": {
+            "type": "string",
+            "enum": [
+              "BANK_OF_ALGERIA",
+              "SHARIA_COMMITTEE",
+              "AAOIFI",
+              "IFSB"
+            ]
+          },
+          "legalReference": {
+            "type": "string"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ComplianceArbitration": {
+        "type": "object",
+        "required": [
+          "selectedReferenceId",
+          "rejectedReferenceId",
+          "rationale"
+        ],
+        "properties": {
+          "selectedReferenceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rejectedReferenceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 20
+          }
+        },
+        "additionalProperties": false
+      },
       "ApiStatus": {
         "type": "object",
-        "required": ["message"],
-        "properties": { "message": { "type": "string" } },
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
         "additionalProperties": false
       },
       "CurrencyDefinition": {
         "type": "object",
-        "required": ["code", "name", "fractionDigits", "validFrom"],
+        "required": [
+          "code",
+          "name",
+          "fractionDigits",
+          "validFrom"
+        ],
         "properties": {
-          "code": { "type": "string", "pattern": "^[A-Z]{3}$" },
-          "name": { "type": "string", "minLength": 1 },
-          "fractionDigits": { "type": "integer", "minimum": 0, "maximum": 6 },
-          "validFrom": { "type": "string", "format": "date" },
-          "validUntil": { "type": "string", "format": "date" }
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "fractionDigits": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "validUntil": {
+            "type": "string",
+            "format": "date"
+          }
         },
         "additionalProperties": false
       },
       "InvestmentPosition": {
         "type": "object",
-        "required": ["businessDate", "valueDate", "balance", "currency"],
+        "required": [
+          "businessDate",
+          "valueDate",
+          "balance",
+          "currency"
+        ],
         "properties": {
-          "businessDate": { "type": "string", "format": "date" },
-          "valueDate": { "type": "string", "format": "date" },
-          "balance": { "type": "string", "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$" },
-          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+          "businessDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "valueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "balance": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          }
         },
         "additionalProperties": false
       },
       "InvestmentAccountSnapshot": {
         "type": "object",
-        "required": ["accountId", "productCode", "currency", "openedOn", "status"],
+        "required": [
+          "accountId",
+          "productCode",
+          "currency",
+          "openedOn",
+          "status"
+        ],
         "properties": {
-          "accountId": { "type": "string", "format": "uuid" },
-          "productCode": { "type": "string" },
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productCode": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "openedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "CLOSED"
+            ]
+          },
+          "closedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "position": {
+            "$ref": "#/components/schemas/InvestmentPosition"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CalculationAllocation": {
+        "type": "object",
+        "required": [
+          "participantId",
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "participantId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CalculationRun": {
+        "type": "object",
+        "required": [
+          "runId",
+          "poolId",
+          "businessDate",
+          "rulesVersion",
+          "engineVersion",
+          "status",
+          "allocations"
+        ],
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "poolId": {
+            "type": "string"
+          },
+          "businessDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "rulesVersion": {
+            "type": "string"
+          },
+          "engineVersion": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "CALCULATED",
+              "CONTROLLED",
+              "APPROVED",
+              "POSTED",
+              "ARCHIVED",
+              "FAILED"
+            ]
+          },
+          "inputChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "outputChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "distributableAmount": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "allocations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalculationAllocation"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkflowApprovalCommand": {
+        "type": "object",
+        "required": [
+          "justification"
+        ],
+        "properties": {
+          "justification": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkflowTransition": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AccountingPostingResult": {
+        "type": "object",
+        "required": [
+          "state",
+          "journalEntryId"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "const": "POSTED"
+          },
+          "journalEntryId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "JournalReversalCommand": {
+        "type": "object",
+        "required": [
+          "justification",
+          "reversalBusinessDate"
+        ],
+        "properties": {
+          "justification": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000
+          },
+          "reversalBusinessDate": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "additionalProperties": false
+      },
+      "JournalReversalResult": {
+        "type": "object",
+        "required": [
+          "state",
+          "reversalJournalEntryId"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "const": "POSTED"
+          },
+          "reversalJournalEntryId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DocumentArchiveRequestCommand": {
+        "type": "object",
+        "required": ["objectKey", "businessType", "businessId", "classification", "evidentiary"],
+        "properties": {
+          "objectKey": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{2,511}$" },
+          "businessType": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,63}$" },
+          "businessId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$" },
+          "classification": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,63}$" },
+          "evidentiary": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "DocumentArchiveQueued": {
+        "type": "object",
+        "required": ["requestId", "status"],
+        "properties": { "requestId": { "type": "string", "format": "uuid" }, "status": { "type": "string", "enum": ["QUEUED", "ARCHIVED"] } },
+        "additionalProperties": false
+      },
+      "DocumentArchiveRequest": {
+        "allOf": [
+          { "$ref": "#/components/schemas/DocumentArchiveRequestCommand" },
+          {
+            "type": "object",
+            "required": ["requestId", "status", "createdAt"],
+            "properties": {
+              "requestId": { "type": "string", "format": "uuid" },
+              "status": { "type": "string", "enum": ["QUEUED", "ARCHIVED"] },
+              "checksumSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "paperlessDocumentId": { "type": "integer", "minimum": 1 },
+              "wormObjectKey": { "type": "string" },
+              "createdAt": { "type": "string", "format": "date-time" },
+              "archivedAt": { "type": "string", "format": "date-time" }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "AuditEvent": {
+        "type": "object",
+        "required": ["auditEventId", "eventHash", "signingKeyId", "signatureBase64", "correlationId", "actorId", "technicalIdentity", "action", "resourceType", "resourceId", "outcome", "businessDate", "occurredAt", "sourceApplication"],
+        "properties": {
+          "auditEventId": { "type": "string", "format": "uuid" },
+          "previousHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "eventHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "signingKeyId": { "type": "string", "minLength": 1 },
+          "signatureBase64": { "type": "string", "minLength": 1 },
+          "correlationId": { "type": "string", "format": "uuid" },
+          "actorId": { "type": "string", "minLength": 1 },
+          "technicalIdentity": { "type": "string", "minLength": 1 },
+          "sessionId": { "type": "string" },
+          "action": { "type": "string", "minLength": 1 },
+          "resourceType": { "type": "string", "minLength": 1 },
+          "resourceId": { "type": "string", "minLength": 1 },
+          "outcome": { "type": "string", "enum": ["SUCCESS", "DENIED", "FAILURE"] },
+          "businessDate": { "type": "string", "format": "date" },
+          "occurredAt": { "type": "string", "format": "date-time" },
+          "sourceApplication": { "type": "string", "minLength": 1 },
+          "sourceAddress": { "type": "string" },
+          "justification": { "type": "string" },
+          "runId": { "type": "string", "format": "uuid" },
+          "batchId": { "type": "string", "format": "uuid" },
+          "documentReferenceId": { "type": "string", "format": "uuid" },
+          "authorizedChanges": { "type": "object" }
+        },
+        "additionalProperties": false
+      },
+      "AuditTrail": {
+        "type": "object",
+        "required": ["events", "integrity", "chainValid", "verifiedCount"],
+        "properties": {
+          "events": { "type": "array", "items": { "$ref": "#/components/schemas/AuditEvent" } },
+          "integrity": { "type": "string", "const": "HASH_CHAIN" },
+          "chainValid": { "type": "boolean" },
+          "verifiedCount": { "type": "integer", "minimum": 0 },
+          "brokenAtEventId": { "type": "string", "format": "uuid" }
+        },
+        "additionalProperties": false
+      },
+      "AccountingJournalLine": {
+        "type": "object",
+        "required": ["accountCode", "currency", "debit", "credit"],
+        "properties": {
+          "accountCode": { "type": "string", "pattern": "^[A-Z0-9a-f:_-]{2,128}$" },
           "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
-          "openedOn": { "type": "string", "format": "date" },
-          "status": { "type": "string", "enum": ["ACTIVE", "SUSPENDED", "CLOSED"] },
-          "closedOn": { "type": "string", "format": "date" },
-          "position": { "$ref": "#/components/schemas/InvestmentPosition" }
+          "debit": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?$" },
+          "credit": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?$" },
+          "participantId": { "type": ["string", "null"], "minLength": 1, "maxLength": 128 }
+        },
+        "additionalProperties": false
+      },
+      "AccountingEventCommand": {
+        "type": "object",
+        "required": ["runId", "poolId", "productId", "eventType", "eventId", "entityId", "businessDate", "currencyScale", "lines"],
+        "properties": {
+          "runId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "poolId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "productId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "eventType": { "type": "string", "enum": ["REVENUE", "PROFIT_SHARE", "PER_MOVEMENT", "IRR_MOVEMENT", "PURIFICATION", "WITHHOLDING_TAX", "REMAINDER", "CORRECTION"] },
+          "eventId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "entityId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "businessDate": { "type": "string", "format": "date" },
+          "currencyScale": { "type": "integer", "minimum": 0, "maximum": 6 },
+          "lines": { "type": "array", "minItems": 2, "maxItems": 1000, "items": { "$ref": "#/components/schemas/AccountingJournalLine" } }
+        },
+        "additionalProperties": false
+      },
+      "AccountingEventResult": {
+        "type": "object",
+        "required": ["journalEntryId", "acknowledgementState"],
+        "properties": {
+          "journalEntryId": { "type": "string", "format": "uuid" },
+          "acknowledgementState": { "type": "string", "const": "PENDING" }
+        },
+        "additionalProperties": false
+      },
+      "AccountingAcknowledgementCommand": {
+        "type": "object",
+        "required": ["action", "externalReference"],
+        "properties": {
+          "action": { "type": "string", "enum": ["ACKNOWLEDGED", "REJECTED", "RETRIED", "REVERSED"] },
+          "externalReference": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "reason": { "type": "string", "minLength": 10, "maxLength": 2000 }
+        },
+        "additionalProperties": false
+      },
+      "AccountingAcknowledgementResult": {
+        "type": "object",
+        "required": ["acknowledgementState"],
+        "properties": {
+          "acknowledgementState": { "type": "string", "enum": ["PENDING", "ACKNOWLEDGED", "REJECTED", "RETRIED", "REVERSED"] }
+        },
+        "additionalProperties": false
+      },
+      "ReconciliationCommand": {
+        "type": "object",
+        "required": [
+          "businessDate",
+          "currency",
+          "generalLedgerAmount",
+          "sourceReference",
+          "sourceChecksumSha256"
+        ],
+        "properties": {
+          "businessDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "generalLedgerAmount": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$"
+          },
+          "sourceReference": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 256
+          },
+          "sourceChecksumSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReconciliationResult": {
+        "type": "object",
+        "required": [
+          "reconciliationId",
+          "state",
+          "difference"
+        ],
+        "properties": {
+          "reconciliationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "MATCHED",
+              "VARIANCE"
+            ]
+          },
+          "difference": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShariaReviewSubmission": {
+        "type": "object",
+        "required": [
+          "resourceType",
+          "resourceId"
+        ],
+        "properties": {
+          "resourceType": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 64
+          },
+          "resourceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShariaOpinion": {
+        "type": "object",
+        "required": [
+          "opinion"
+        ],
+        "properties": {
+          "opinion": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 4000
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShariaDecision": {
+        "type": "object",
+        "required": [
+          "decision",
+          "justification",
+          "evidenceDocumentId"
+        ],
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "justification": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 4000
+          },
+          "evidenceDocumentId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShariaReviewTransition": {
+        "type": "object",
+        "required": [
+          "reviewId",
+          "state"
+        ],
+        "properties": {
+          "reviewId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "SUBMITTED",
+              "REVIEWED",
+              "APPROVED",
+              "REJECTED"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "PublishedRiskDashboard": {
+        "type": "object",
+        "required": ["runId", "poolId", "businessDate", "currency", "poolProfitRate", "distributedProfitRate", "yieldGap", "bankMargin", "totalResources", "investedAmount", "averageDurationDays", "assetConcentrationRate", "maturityGaps", "currencyGaps", "perCoverageRate", "irrCoverageRate", "dcrValue", "dcrState", "source", "dataQualityWarnings"],
+        "properties": {
+          "runId": { "type": "string" },
+          "poolId": { "type": "string" },
+          "businessDate": { "type": "string", "format": "date" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "poolProfitRate": { "type": "string" },
+          "distributedProfitRate": { "type": "string" },
+          "yieldGap": { "type": "string" },
+          "bankMargin": { "type": "string" },
+          "totalResources": { "type": "string" },
+          "investedAmount": { "type": "string" },
+          "averageDurationDays": { "type": ["string", "null"] },
+          "assetConcentrationRate": { "type": "string" },
+          "maturityGaps": { "type": "array", "items": { "$ref": "#/components/schemas/CompositionBucket" } },
+          "currencyGaps": { "type": "array", "items": { "$ref": "#/components/schemas/CompositionBucket" } },
+          "perCoverageRate": { "type": "string" },
+          "irrCoverageRate": { "type": "string" },
+          "dcrValue": { "type": ["string", "null"] },
+          "dcrState": { "type": ["string", "null"], "enum": ["WITHIN_LIMIT", "BREACH", null] },
+          "source": { "type": "string", "const": "LATEST_PUBLISHED_RUN" },
+          "dataQualityWarnings": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": false
+      },
+      "DcrCalculationCommand": {
+        "type": "object",
+        "required": [
+          "poolId",
+          "businessDate",
+          "currency",
+          "capitalDurationAmount",
+          "riskWeightedDurationAmount",
+          "threshold",
+          "formulaVersion",
+          "inputChecksumSha256"
+        ],
+        "properties": {
+          "poolId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "businessDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "capitalDurationAmount": {
+            "type": "string"
+          },
+          "riskWeightedDurationAmount": {
+            "type": "string"
+          },
+          "threshold": {
+            "type": "string"
+          },
+          "formulaVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "inputChecksumSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DcrCalculationResult": {
+        "type": "object",
+        "required": [
+          "dcrCalculationId",
+          "value",
+          "threshold",
+          "state"
+        ],
+        "properties": {
+          "dcrCalculationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "value": {
+            "type": "string"
+          },
+          "threshold": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "WITHIN_LIMIT",
+              "BREACH"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "StressShock": {
+        "type": "object",
+        "required": [
+          "bucket",
+          "basisPoints"
+        ],
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_-]{1,63}$"
+          },
+          "basisPoints": {
+            "type": "integer",
+            "minimum": -10000,
+            "maximum": 10000
+          }
+        },
+        "additionalProperties": false
+      },
+      "StressScenarioCommand": {
+        "type": "object",
+        "required": [
+          "scenarioCode",
+          "businessDate",
+          "currency",
+          "baseAmount",
+          "shocks",
+          "engineVersion",
+          "inputChecksumSha256"
+        ],
+        "properties": {
+          "scenarioCode": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_-]{1,63}$"
+          },
+          "businessDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "baseAmount": {
+            "type": "string"
+          },
+          "shocks": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/StressShock"
+            }
+          },
+          "engineVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "inputChecksumSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "StressResultLine": {
+        "type": "object",
+        "required": [
+          "bucket",
+          "basisPoints",
+          "stressedAmount",
+          "impactAmount"
+        ],
+        "properties": {
+          "bucket": {
+            "type": "string"
+          },
+          "basisPoints": {
+            "type": "integer"
+          },
+          "stressedAmount": {
+            "type": "string"
+          },
+          "impactAmount": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "StressScenarioResult": {
+        "type": "object",
+        "required": [
+          "stressScenarioId",
+          "state",
+          "results"
+        ],
+        "properties": {
+          "stressScenarioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "const": "COMPLETED"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StressResultLine"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateSecureExport": {
+        "type": "object", "required": ["reportType", "format", "scope"], "properties": {
+          "reportType": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,63}$" },
+          "format": { "type": "string", "enum": ["PDF", "XLSX", "CSV", "API"] },
+          "scope": { "type": "string", "enum": ["SINGLE", "BULK"] },
+          "filters": { "type": "object", "additionalProperties": { "type": "string" } }
+        }, "additionalProperties": false
+      },
+      "SecureExportTransition": { "type": "object", "required": ["exportId", "status"], "properties": { "exportId": { "type": "string", "format": "uuid" }, "status": { "type": "string" } }, "additionalProperties": false },
+      "SecureExportApproval": { "type": "object", "required": ["status"], "properties": { "status": { "type": "string" } }, "additionalProperties": false },
+      "ExportColumn": { "type": "object", "required": ["key", "label"], "properties": { "key": { "type": "string" }, "label": { "type": "string" }, "personalData": { "type": "boolean" } }, "additionalProperties": false },
+      "ExportDataset": { "type": "object", "required": ["columns", "rows"], "properties": { "columns": { "type": "array", "items": { "$ref": "#/components/schemas/ExportColumn" } }, "rows": { "type": "array", "items": { "type": "object", "additionalProperties": true } } }, "additionalProperties": false },
+      "SecureExportGeneration": { "type": "object", "required": ["dataset"], "properties": { "dataset": { "$ref": "#/components/schemas/ExportDataset" } }, "additionalProperties": false },
+      "GeneratedSecureExport": { "type": "object", "required": ["exportId", "status", "checksumSha256"], "properties": { "exportId": { "type": "string", "format": "uuid" }, "status": { "type": "string", "const": "GENERATED" }, "checksumSha256": { "type": "string" } }, "additionalProperties": false },
+      "RegulatoryReportGeneration": {
+        "type": "object",
+        "required": [
+          "reportType",
+          "period"
+        ],
+        "properties": {
+          "reportType": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_-]{1,63}$"
+          },
+          "period": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegulatoryReportSnapshot": {
+        "type": "object",
+        "required": [
+          "period",
+          "postedCalculationCount",
+          "reconciliationVarianceCount",
+          "dcrBreachCount",
+          "approvedShariaReviewCount",
+          "rejectedShariaReviewCount"
+        ],
+        "properties": {
+          "period": {
+            "type": "string"
+          },
+          "postedCalculationCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reconciliationVarianceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dcrBreachCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "approvedShariaReviewCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "rejectedShariaReviewCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "GeneratedRegulatoryReport": {
+        "type": "object",
+        "required": [
+          "regulatoryReportId",
+          "state",
+          "snapshot",
+          "sourceChecksumSha256",
+          "outputChecksumSha256"
+        ],
+        "properties": {
+          "regulatoryReportId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "const": "GENERATED"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/RegulatoryReportSnapshot"
+          },
+          "sourceChecksumSha256": {
+            "type": "string"
+          },
+          "outputChecksumSha256": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegulatoryReportPublication": {
+        "type": "object",
+        "required": [
+          "evidenceDocumentId",
+          "justification"
+        ],
+        "properties": {
+          "evidenceDocumentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "justification": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegulatoryReportTransition": {
+        "type": "object",
+        "required": [
+          "regulatoryReportId",
+          "state"
+        ],
+        "properties": {
+          "regulatoryReportId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "const": "PUBLISHED"
+          }
         },
         "additionalProperties": false
       },
@@ -212,36 +5405,277 @@
           "workflowStatus"
         ],
         "properties": {
-          "amount": { "type": "string", "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$" },
-          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
-          "legalEntityId": { "type": "string", "minLength": 1 },
-          "branchId": { "type": "string", "minLength": 1 },
-          "workflowStatus": { "type": "string", "const": "PENDING_APPROVAL" },
-          "previousActorId": { "type": "string", "minLength": 1 }
+          "amount": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "legalEntityId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "branchId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "workflowStatus": {
+            "type": "string",
+            "const": "PENDING_APPROVAL"
+          },
+          "previousActorId": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "additionalProperties": false
       },
       "ApprovedPoolOperation": {
         "type": "object",
-        "required": ["poolId", "status", "amount", "currency"],
+        "required": [
+          "poolId",
+          "status",
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "poolId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "const": "APPROVED"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TenorYieldCurvePoint": {
+        "type": "object",
+        "required": ["bucket", "financingAmount", "placementAmount", "gap", "servedYieldPercent"],
+        "properties": {
+          "bucket": { "type": "string", "enum": ["0-30D", "31-90D", "91-180D", "181-365D", "1-3Y", "3Y+"] },
+          "financingAmount": { "type": "string" },
+          "placementAmount": { "type": "string" },
+          "gap": { "type": "string" },
+          "servedYieldPercent": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "TenorYieldCurve": {
+        "type": "object",
+        "required": ["poolId", "businessDate", "currency", "closingId", "scope", "points"],
         "properties": {
           "poolId": { "type": "string" },
-          "status": { "type": "string", "const": "APPROVED" },
-          "amount": { "type": "string" },
-          "currency": { "type": "string" }
+          "businessDate": { "type": "string", "format": "date" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "closingId": { "type": "string", "format": "uuid" },
+          "scope": { "type": "string", "enum": ["POOL", "CUSTOMER"] },
+          "points": { "type": "array", "minItems": 6, "maxItems": 6, "items": { "$ref": "#/components/schemas/TenorYieldCurvePoint" } }
+        },
+        "additionalProperties": false
+      },
+      "HistoricalYieldForecastPoint": {
+        "type": "object",
+        "required": ["month", "movingAveragePercent", "trendPercent", "forecastPercent"],
+        "properties": {
+          "month": { "type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$" },
+          "movingAveragePercent": { "type": "string" },
+          "trendPercent": { "type": "string" },
+          "forecastPercent": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "HistoricalYieldForecast": {
+        "type": "object",
+        "required": ["forecastId", "method", "scope", "complementsManualScenarios", "sourceChecksumSha256", "points"],
+        "properties": {
+          "forecastId": { "type": "string", "format": "uuid" },
+          "method": { "type": "string", "const": "MOVING_AVERAGE_AND_LINEAR_TREND" },
+          "scope": { "type": "string", "const": "POOL" },
+          "complementsManualScenarios": { "type": "boolean", "const": true },
+          "sourceChecksumSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "points": { "type": "array", "minItems": 12, "maxItems": 12, "items": { "$ref": "#/components/schemas/HistoricalYieldForecastPoint" } }
+        },
+        "additionalProperties": false
+      },
+      "ProfitExplanationSource": {
+        "type": "object",
+        "required": ["accountId", "currency", "capitalInvested", "participationBase", "eligiblePeriod", "weighting", "contractualRatio", "poolProfit", "allocatedShare", "reservesUsed", "taxAmount", "netPaid", "realizedRatePercent", "distributedRatePercent", "nonGuaranteedNotice", "lossExplanation"],
+        "properties": {
+          "accountId": { "type": "string" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "capitalInvested": { "type": "string" },
+          "participationBase": { "type": "string" },
+          "eligiblePeriod": { "type": "object", "required": ["from", "to"], "properties": { "from": { "type": "string", "format": "date" }, "to": { "type": "string", "format": "date" } }, "additionalProperties": false },
+          "weighting": { "type": "string" },
+          "contractualRatio": { "type": "string" },
+          "poolProfit": { "type": "string" },
+          "allocatedShare": { "type": "string" },
+          "reservesUsed": { "type": "string" },
+          "taxAmount": { "type": "string" },
+          "netPaid": { "type": "string" },
+          "realizedRatePercent": { "type": "string" },
+          "distributedRatePercent": { "type": "string" },
+          "nonGuaranteedNotice": { "type": "string" },
+          "lossExplanation": { "type": ["string", "null"] },
+          "mudaribNetShare": { "type": "string" },
+          "perClosingBalance": { "type": "string" },
+          "irrClosingBalance": { "type": "string" },
+          "lossAbsorptionCapacity": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "ProfitExplanation": {
+        "type": "object",
+        "required": ["runId", "accountId", "outputChecksumSha256", "view", "source"],
+        "properties": {
+          "runId": { "type": "string", "format": "uuid" },
+          "accountId": { "type": "string", "format": "uuid" },
+          "outputChecksumSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "view": { "type": "string", "enum": ["SIMPLIFIED", "DETAILED"] },
+          "source": { "$ref": "#/components/schemas/ProfitExplanationSource" }
+        },
+        "additionalProperties": false
+      },
+      "PlanningAssumptions": {
+        "type": "object",
+        "required": ["monthlyResourceGrowthPercent", "annualYieldPercent", "monthlyPlacementGrowthPercent"],
+        "properties": {
+          "monthlyResourceGrowthPercent": { "type": "string", "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$" },
+          "annualYieldPercent": { "type": "string", "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$" },
+          "monthlyPlacementGrowthPercent": { "type": "string", "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$" }
+        },
+        "additionalProperties": false
+      },
+      "CreatePlanningScenario": {
+        "type": "object",
+        "required": ["poolId", "kind", "version", "startMonth", "assumptions"],
+        "properties": {
+          "poolId": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "enum": ["CENTRAL", "OPTIMISTIC", "STRESSED"] },
+          "version": { "type": "integer", "minimum": 1 },
+          "startMonth": { "type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$" },
+          "assumptions": { "$ref": "#/components/schemas/PlanningAssumptions" }
+        },
+        "additionalProperties": false
+      },
+      "PlanningScenarioTransitionCommand": {
+        "type": "object",
+        "required": ["targetStatus"],
+        "properties": { "targetStatus": { "type": "string", "enum": ["SUBMITTED", "VALIDATED", "OFFICIAL_BUDGET"] } },
+        "additionalProperties": false
+      },
+      "PlanningScenarioTransition": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "scenarioId": { "type": "string", "format": "uuid" },
+          "status": { "type": "string", "enum": ["DRAFT", "SUBMITTED", "VALIDATED", "OFFICIAL_BUDGET"] }
+        },
+        "additionalProperties": false
+      },
+      "DashboardAudience": {
+        "type": "string",
+        "enum": ["EXECUTIVE", "FINANCE", "RISK_ALM", "SHARIA"]
+      },
+      "DashboardItem": {
+        "type": "object",
+        "required": ["code", "value", "availability"],
+        "properties": {
+          "code": { "type": "string", "minLength": 1 },
+          "value": { "type": ["object", "string", "number", "boolean", "null"] },
+          "availability": { "type": "string", "enum": ["AVAILABLE", "UNAVAILABLE"] },
+          "justification": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      },
+      "AudienceDashboard": {
+        "type": "object",
+        "required": ["audience", "generatedAt", "items", "queryDurationMs", "requiredItemCount", "complete", "performanceBudgetMs"],
+        "properties": {
+          "audience": { "$ref": "#/components/schemas/DashboardAudience" },
+          "businessDate": { "type": "string", "format": "date" },
+          "generatedAt": { "type": "string", "format": "date-time" },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/DashboardItem" } },
+          "queryDurationMs": { "type": "number", "minimum": 0 },
+          "requiredItemCount": { "type": "integer", "minimum": 1 },
+          "complete": { "type": "boolean", "const": true },
+          "performanceBudgetMs": { "type": "integer", "const": 3000 }
+        },
+        "additionalProperties": false
+      },
+      "CreateExceptionCase": {
+        "type": "object",
+        "required": ["sourceType", "sourceId", "resourceType", "resourceId", "severity", "title", "description"],
+        "properties": {
+          "sourceType": { "type": "string", "minLength": 1 },
+          "sourceId": { "type": "string", "minLength": 1 },
+          "resourceType": { "type": "string", "minLength": 1 },
+          "resourceId": { "type": "string", "minLength": 1 },
+          "severity": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+          "title": { "type": "string", "minLength": 5 },
+          "description": { "type": "string", "minLength": 10 }
+        },
+        "additionalProperties": false
+      },
+      "ExceptionTransitionCommand": {
+        "type": "object",
+        "required": ["targetStatus", "comment"],
+        "properties": {
+          "targetStatus": { "type": "string", "enum": ["DETECTED", "QUALIFIED", "ASSIGNED", "IN_PROGRESS", "CORRECTED", "CONTROLLED", "CLOSED", "ACCEPTED_RISK"] },
+          "comment": { "type": "string", "minLength": 10 },
+          "riskAcceptanceReference": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "ExceptionTransition": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "exceptionId": { "type": "string", "format": "uuid" },
+          "status": { "type": "string", "enum": ["DETECTED", "QUALIFIED", "ASSIGNED", "IN_PROGRESS", "CORRECTED", "CONTROLLED", "CLOSED", "ACCEPTED_RISK"] }
         },
         "additionalProperties": false
       },
       "Problem": {
         "type": "object",
-        "required": ["type", "title", "status"],
+        "required": [
+          "type",
+          "title",
+          "status"
+        ],
         "properties": {
-          "type": { "type": "string", "format": "uri-reference" },
-          "title": { "type": "string" },
-          "status": { "type": "integer", "minimum": 400, "maximum": 599 },
-          "detail": { "type": "string" },
-          "instance": { "type": "string", "format": "uri-reference" },
-          "correlationId": { "type": "string", "format": "uuid" }
+          "type": {
+            "type": "string",
+            "format": "uri-reference"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string",
+            "format": "uri-reference"
+          },
+          "correlationId": {
+            "type": "string",
+            "format": "uuid"
+          }
         }
       }
     }

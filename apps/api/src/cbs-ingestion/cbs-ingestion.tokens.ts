@@ -1,0 +1,1 @@
+export const QUERY_CBS_DATA_QUALITY = Symbol('QUERY_CBS_DATA_QUALITY');

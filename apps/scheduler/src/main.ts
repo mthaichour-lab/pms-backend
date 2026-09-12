@@ -3,6 +3,9 @@ import { RabbitMqEventPublisher } from '../../../src/infrastructure/messaging/ra
 import { createPostgresPool } from '../../../src/infrastructure/persistence/postgres-client.js';
 import { PostgresOutboxRepository } from '../../../src/infrastructure/persistence/postgres-outbox.repository.js';
 import { OutboxScheduler } from './outbox-scheduler.js';
+import { ClosingGovernanceScheduler } from './closing-governance-scheduler.js';
+import { ProcessClosingGovernance } from '../../../src/modules/closing-workflow/application/process-closing-governance.js';
+import { PostgresClosingGovernanceRepository } from '../../../src/infrastructure/persistence/postgres-closing-governance.repository.js';
 
 async function bootstrap(): Promise<void> {
   const databaseUrl = requiredEnvironment('DATABASE_URL');
@@ -23,7 +26,12 @@ async function bootstrap(): Promise<void> {
     positiveIntegerEnvironment('OUTBOX_BATCH_SIZE', 100),
   );
   scheduler.start();
-  console.log(JSON.stringify({ event: 'scheduler.ready', jobs: ['outbox-relay'] }));
+  const closingScheduler = new ClosingGovernanceScheduler(
+    new ProcessClosingGovernance(new PostgresClosingGovernanceRepository(pool)),
+    positiveIntegerEnvironment('CLOSING_GOVERNANCE_INTERVAL_MS', 60_000),
+  );
+  closingScheduler.start();
+  console.log(JSON.stringify({ event: 'scheduler.ready', jobs: ['outbox-relay', 'closing-governance'] }));
 
   let stopping = false;
   const stop = async (signal: NodeJS.Signals) => {
@@ -31,6 +39,7 @@ async function bootstrap(): Promise<void> {
     stopping = true;
     console.log(JSON.stringify({ event: 'scheduler.stopping', signal }));
     await scheduler.stop();
+    await closingScheduler.stop();
     await publisher.close();
     await pool.end();
   };

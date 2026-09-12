@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { calculationWorker } from '../../apps/calculation-worker/src/worker.js';
+import { auditWorker } from '../../apps/audit-worker/src/worker.js';
 import { closingWorker } from '../../apps/closing-worker/src/worker.js';
 import { documentWorker } from '../../apps/document-worker/src/worker.js';
 import { ingestionWorker } from '../../apps/ingestion-worker/src/worker.js';
@@ -12,6 +13,7 @@ describe('specialized process architecture', () => {
     ingestionWorker,
     closingWorker,
     documentWorker,
+    auditWorker,
     scheduler,
   ];
 

@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from 'pg';
 
 import {
+  calculateAuditHash,
   createSignedAuditEvent,
   type AuditEventDraft,
   type AuditSigner,
@@ -18,6 +19,31 @@ export class PostgresAuditRepository {
     try {
       await client.query('BEGIN');
       await client.query("SELECT pg_advisory_xact_lock(hashtext('pms.audit.chain'))");
+      const duplicate = await client.query<{
+        previous_hash: string | null;
+        event_hash: string;
+        signing_key_id: string;
+        signature_base64: string;
+      }>(
+        `SELECT previous_hash, event_hash, signing_key_id, signature_base64
+         FROM audit.event WHERE audit_event_id = $1::uuid`,
+        [draft.auditEventId],
+      );
+      const existing = duplicate.rows[0];
+      if (existing) {
+        const previousHash = existing.previous_hash ?? undefined;
+        if (calculateAuditHash(draft, previousHash) !== existing.event_hash) {
+          throw new Error('Audit event identifier was already used for a different payload');
+        }
+        await client.query('COMMIT');
+        return {
+          ...draft,
+          previousHash,
+          eventHash: existing.event_hash,
+          signingKeyId: existing.signing_key_id,
+          signatureBase64: existing.signature_base64,
+        };
+      }
       const previous = await client.query<{ event_hash: string }>(
         'SELECT event_hash FROM audit.event ORDER BY created_at DESC, audit_event_id DESC LIMIT 1',
       );

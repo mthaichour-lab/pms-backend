@@ -3,7 +3,7 @@ import type { DocumentContent } from '../../documents/application/document-ports
 
 export interface InvestmentPositionRow {
   accountId: string;
-  customerToken: string;
+  customerReference: string;
   productCode: string;
   currency: string;
   openedOn: string;
@@ -33,24 +33,24 @@ export class StageInvestmentPositions {
 export function parseInvestmentPositionsCsv(csv: string): InvestmentPositionRow[] {
   const records = parseCsv(csv.replace(/^\uFEFF/, ''));
   const expected = [
-    'account_id', 'customer_token', 'product_code', 'currency',
+    'account_id', 'customer_id', 'product_code', 'currency',
     'opened_on', 'business_date', 'value_date', 'balance',
   ];
   const header = records.shift();
   if (!header || header.join(',') !== expected.join(',')) throw new TypeError('Unexpected investment positions CSV header');
   return records.filter((record) => !(record.length === 1 && record[0] === '')).map((record, index) => {
     if (record.length !== expected.length) throw new TypeError(`Invalid CSV column count at row ${index + 2}`);
-    const [accountId, customerToken, productCode, currency, openedOn, businessDate, valueDate, balance] = record;
-    if (!accountId || !customerToken || !productCode || !currency || !openedOn || !businessDate || !valueDate || !balance) {
+    const [accountId, customerReference, productCode, currency, openedOn, businessDate, valueDate, balance] = record;
+    if (!accountId || !customerReference || !productCode || !currency || !openedOn || !businessDate || !valueDate || !balance) {
       throw new TypeError(`Missing investment position value at row ${index + 2}`);
     }
     if (!/^[0-9a-f-]{36}$/i.test(accountId)) throw new TypeError(`Invalid account identifier at row ${index + 2}`);
-    if (!/^tok_[A-Za-z0-9_-]{16,}$/.test(customerToken)) throw new TypeError(`Untokenized customer at row ${index + 2}`);
+    if (customerReference.length > 128 || !/^[A-Za-z0-9._-]+$/.test(customerReference)) throw new TypeError(`Invalid customer identifier at row ${index + 2}`);
     for (const [name, value] of [['opened_on', openedOn], ['business_date', businessDate], ['value_date', valueDate]]) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new TypeError(`Invalid ${name} at row ${index + 2}`);
     }
     Money.parse(balance, currency, 12);
-    return { accountId, customerToken, productCode, currency, openedOn, businessDate, valueDate, balance };
+    return { accountId, customerReference, productCode, currency, openedOn, businessDate, valueDate, balance };
   });
 }
 
