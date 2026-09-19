@@ -56,6 +56,11 @@ services:
           USER_ID="$$(/opt/keycloak/bin/kcadm.sh get users -r pms-dev -q username="$${DEV_USER}" --fields id --format csv --noquotes | head -n 1)"
         fi
         /opt/keycloak/bin/kcadm.sh set-password -r pms-dev --userid "$${USER_ID}" --new-password "$${DEV_PASSWORD}"
+        /opt/keycloak/bin/kcadm.sh create groups -r pms-dev -s name=pms-system-admins >/dev/null 2>&1 || true
+        GROUP_ID="$$(/opt/keycloak/bin/kcadm.sh get groups -r pms-dev -q search=pms-system-admins --fields id --format csv --noquotes | head -n 1)"
+        if [ -n "$${GROUP_ID}" ]; then
+          /opt/keycloak/bin/kcadm.sh update users/"$${USER_ID}"/groups/"$${GROUP_ID}" -r pms-dev >/dev/null 2>&1 || true
+        fi
     environment:
       ADMIN_USER: ${KEYCLOAK_ADMIN:-admin}
       ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
