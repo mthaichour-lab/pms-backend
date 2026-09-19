@@ -99,6 +99,12 @@ services:
       db-migrate: { condition: service_completed_successfully }
 
   ingestion-worker:
+    environment:
+      <<: *local-runtime
+      CBS_SOURCE_PUBLIC_KEYS_JSON: ${CBS_SOURCE_PUBLIC_KEYS_JSON:?set CBS_SOURCE_PUBLIC_KEYS_JSON in .env.local}
+    depends_on: *local-worker-dependencies
+
+  audit-worker:
     environment: *local-runtime
     depends_on: *local-worker-dependencies
 

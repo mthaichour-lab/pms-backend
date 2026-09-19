@@ -40,9 +40,7 @@ CREATE INDEX IF NOT EXISTS access_grant_subject_idx
   ON iam_ref.access_grant (subject_id)
   WHERE revoked_at IS NULL;
 CREATE INDEX IF NOT EXISTS access_grant_review_idx
-  ON iam_ref.access_grant (
-    (COALESCE(last_reviewed_at, granted_at) + make_interval(days => review_interval_days))
-  )
+  ON iam_ref.access_grant (last_reviewed_at, granted_at, review_interval_days)
   WHERE revoked_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS integration.outbox_event (

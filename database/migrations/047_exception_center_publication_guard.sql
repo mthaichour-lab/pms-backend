@@ -19,9 +19,9 @@ CREATE TABLE IF NOT EXISTS workflow.exception_case_history(
   CHECK(resulting_status<>'ACCEPTED_RISK' OR risk_acceptance_reference IS NOT NULL)
 );
 CREATE OR REPLACE FUNCTION workflow.guard_exception_transition()RETURNS trigger LANGUAGE plpgsql AS $$BEGIN
-  IF NOT CASE NEW.previous_status WHEN'DETECTED'THEN NEW.resulting_status='QUALIFIED' WHEN'QUALIFIED'THEN NEW.resulting_status='ASSIGNED'
+  IF NOT (CASE NEW.previous_status WHEN'DETECTED'THEN NEW.resulting_status='QUALIFIED' WHEN'QUALIFIED'THEN NEW.resulting_status='ASSIGNED'
     WHEN'ASSIGNED'THEN NEW.resulting_status='IN_PROGRESS' WHEN'IN_PROGRESS'THEN NEW.resulting_status='CORRECTED'
-    WHEN'CORRECTED'THEN NEW.resulting_status='CONTROLLED' WHEN'CONTROLLED'THEN NEW.resulting_status IN('CLOSED','IN_PROGRESS','ACCEPTED_RISK') ELSE false END
+    WHEN'CORRECTED'THEN NEW.resulting_status='CONTROLLED' WHEN'CONTROLLED'THEN NEW.resulting_status IN('CLOSED','IN_PROGRESS','ACCEPTED_RISK') ELSE false END)
   THEN RAISE EXCEPTION 'Invalid exception lifecycle transition';END IF;RETURN NEW;END;$$;
 CREATE TRIGGER exception_transition_guard BEFORE INSERT ON workflow.exception_case_history FOR EACH ROW EXECUTE FUNCTION workflow.guard_exception_transition();
 CREATE OR REPLACE FUNCTION workflow.reject_exception_history_mutation()RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RAISE EXCEPTION 'Exception case history is append-only';END;$$;
