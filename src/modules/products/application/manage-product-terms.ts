@@ -17,6 +17,7 @@ export class ManageProductTerms {
   constructor(private readonly repository: ProductTermsRepository) {}
 
   simulate(input: ProductTermsDraftInput) {
+    assertUuid(input.productId, 'Product');
     ProductTermsVersion.draft({ ...input, termsVersionId: '550e8400-e29b-41d4-a716-446655440000', version: 1, createdBy: 'simulation' });
     const canonical = JSON.stringify([input.productId, input.effectiveFrom, input.effectiveTo ?? null, input.investorNisba, input.bankNisba, input.indicativeTargetRate ?? null]);
     return {
@@ -35,6 +36,9 @@ export class ManageProductTerms {
   }
 
   async publish(productId: string, termsVersionId: string, input: { businessDate: string; simulationChecksumSha256: string; retroactiveApprovalId?: string; actorId: string; justification: string; idempotencyKey: string }): Promise<ProductTermsState> {
+    assertUuid(productId, 'Product');
+    assertUuid(termsVersionId, 'Product terms version');
+    if (!input.actorId.trim()) throw new TypeError('Product terms checker is required');
     if (input.justification.trim().length < 10) throw new TypeError('Publication justification must contain at least 10 characters');
     const command = commandFor(input.idempotencyKey, 'PUBLISH_TERMS', input.actorId, [productId, termsVersionId, input.businessDate, input.simulationChecksumSha256, input.retroactiveApprovalId ?? '', input.justification.trim()]);
     const replay = await this.repository.findIdempotent(command.idempotencyKey, command.requestHash);
@@ -49,6 +53,12 @@ export class ManageProductTerms {
     const published = terms.snapshot();
     await this.repository.publish(published, input.actorId, input.justification.trim(), randomUUID(), command);
     return published;
+  }
+}
+
+function assertUuid(value: string, label: string): void {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+    throw new TypeError(`${label} identifier must be a UUID`);
   }
 }
 

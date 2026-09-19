@@ -87,6 +87,12 @@ pnpm run e2e:real
 pnpm run e2e:real:down
 ```
 
+## PRA
+
+La simulation locale du parcours PRA s'exécute sans secrets avec `pnpm dr:simulate-local`.
+Pour préparer l'exercice réel et ses critères de clôture, consulter
+`docs/runbooks/dr-homologation-handoff.md`.
+
 ## Structure cible
 
 ```text

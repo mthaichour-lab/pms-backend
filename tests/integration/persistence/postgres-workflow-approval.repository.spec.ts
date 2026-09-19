@@ -29,6 +29,7 @@ describe('PostgresWorkflowApprovalRepository audit outbox', () => {
     const outboxIndex = statements.findIndex((sql) => sql.includes('INSERT INTO integration.outbox_event'));
     const commitIndex = statements.indexOf('COMMIT');
     expect(statements[0]).toBe('BEGIN');
+    expect(statements[1]).toContain('pg_advisory_xact_lock');
     expect(outboxIndex).toBeGreaterThan(0);
     expect(commitIndex).toBeGreaterThan(outboxIndex);
 
@@ -52,8 +53,18 @@ describe('PostgresWorkflowApprovalRepository audit outbox', () => {
     const repository = new PostgresWorkflowApprovalRepository({ connect: async () => ({ query, release }) } as never);
 
     await expect(repository.transition(command)).resolves.toEqual({ state: 'CONTROLLED' });
-    expect(query.mock.calls.map(([sql]) => String(sql))).toEqual(['BEGIN', expect.stringContaining('FROM workflow.approval_action'), 'COMMIT']);
+    expect(query.mock.calls.map(([sql]) => String(sql))).toEqual(['BEGIN', expect.stringContaining('pg_advisory_xact_lock'), expect.stringContaining('FROM workflow.approval_action'), 'COMMIT']);
     expect(query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO integration.outbox_event'))).toBe(false);
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it('does not attempt rollback when BEGIN fails', async () => {
+    const query = vi.fn().mockRejectedValueOnce(new Error('connection closed'));
+    const release = vi.fn();
+    const repository = new PostgresWorkflowApprovalRepository({ connect: async () => ({ query, release }) } as never);
+
+    await expect(repository.transition(command)).rejects.toThrow('connection closed');
+    expect(query).toHaveBeenCalledOnce();
     expect(release).toHaveBeenCalledOnce();
   });
 });

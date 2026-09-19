@@ -9,9 +9,19 @@ export class PostgresStressScenarioRepository implements StressScenarioRepositor
     execute: (base: string, currency: string, scale: number, shocks: readonly StressShock[]) => StressResult[],
   ) {
     const client = await this.pool.connect();
+    let transactionStarted = false;
     try {
+      await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
+      transactionStarted = true;
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+        [`stress:${command.scenarioCode}:${command.businessDate}:${command.engineVersion}:${command.inputChecksumSha256}`],
+      );
       const currency = await client.query<{ amount_scale: number }>(
-        'SELECT amount_scale FROM reference.currency WHERE currency_code = $1', [command.currency],
+        `SELECT fraction_digits AS amount_scale FROM reference.currency_version
+         WHERE currency_code = $1 AND valid_from <= $2::date
+           AND (valid_until IS NULL OR valid_until > $2::date)
+         ORDER BY valid_from DESC LIMIT 1`, [command.currency, command.businessDate],
       );
       if (!currency.rows[0]) throw new Error('Stress currency not found');
       const results = execute(command.baseAmount, command.currency, currency.rows[0].amount_scale, command.shocks);
@@ -27,18 +37,53 @@ export class PostgresStressScenarioRepository implements StressScenarioRepositor
           command.engineVersion, command.inputChecksumSha256, command.actorId],
       );
       let stressScenarioId = inserted.rows[0]?.stress_scenario_id;
+      let responseResults: readonly StressResult[] = results;
       if (!stressScenarioId) {
-        const replay = await client.query<{ stress_scenario_id: string }>(
-          `SELECT stress_scenario_id::text FROM risk.stress_scenario
+        const replay = await client.query<{
+          stress_scenario_id: string;
+          parameters: { currency?: unknown; baseAmount?: unknown; shocks?: unknown };
+          results: unknown;
+          created_by: string;
+        }>(
+          `SELECT stress_scenario_id::text, parameters, results, created_by
+           FROM risk.stress_scenario
            WHERE scenario_code = $1 AND business_date = $2::date AND engine_version = $3
-             AND input_checksum_sha256 = $4 AND parameters = $5::jsonb`,
-          [command.scenarioCode, command.businessDate, command.engineVersion,
-            command.inputChecksumSha256, JSON.stringify(parameters)],
+             AND input_checksum_sha256 = $4
+           FOR SHARE`,
+          [command.scenarioCode, command.businessDate, command.engineVersion, command.inputChecksumSha256],
         );
-        if (!replay.rows[0]) throw new Error('Stress scenario replay payload differs');
-        stressScenarioId = replay.rows[0].stress_scenario_id;
+        const snapshot = replay.rows[0];
+        if (!snapshot || snapshot.created_by !== command.actorId ||
+          !isStressParameterSnapshot(snapshot.parameters, command) ||
+          !isStressResultSnapshot(snapshot.results)) {
+          throw new Error('Stress scenario replay payload differs');
+        }
+        stressScenarioId = snapshot.stress_scenario_id;
+        responseResults = snapshot.results;
       }
-      return { stressScenarioId, state: 'COMPLETED' as const, results };
+      await client.query('COMMIT');
+      transactionStarted = false;
+      return { stressScenarioId, state: 'COMPLETED' as const, results: responseResults };
+    } catch (error) {
+      if (transactionStarted) await client.query('ROLLBACK');
+      throw error;
     } finally { client.release(); }
   }
+}
+
+function isStressParameterSnapshot(
+  value: { currency?: unknown; baseAmount?: unknown; shocks?: unknown },
+  command: RunStressScenarioCommand,
+): boolean {
+  return value.currency === command.currency && value.baseAmount === command.baseAmount &&
+    JSON.stringify(value.shocks) === JSON.stringify(command.shocks);
+}
+
+function isStressResultSnapshot(value: unknown): value is StressResult[] {
+  return Array.isArray(value) && value.every((entry) => {
+    if (!entry || typeof entry !== 'object') return false;
+    const result = entry as Partial<StressResult>;
+    return typeof result.bucket === 'string' && Number.isInteger(result.basisPoints) &&
+      typeof result.stressedAmount === 'string' && typeof result.impactAmount === 'string';
+  });
 }

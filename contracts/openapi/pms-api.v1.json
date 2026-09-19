@@ -724,7 +724,14 @@
         },
         "responses": {
           "201": {
-            "description": "Simulation sans mutation"
+            "description": "Simulation sans mutation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllocationSimulation"
+                }
+              }
+            }
           },
           "default": {
             "$ref": "#/components/responses/Problem"
@@ -763,7 +770,14 @@
         },
         "responses": {
           "201": {
-            "description": "Allocation effective-datée"
+            "description": "Allocation effective-datée",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordedAllocation"
+                }
+              }
+            }
           },
           "default": {
             "$ref": "#/components/responses/Problem"
@@ -3348,6 +3362,70 @@
           },
           "approvalId": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AllocationSimulation": {
+        "type": "object",
+        "required": [
+          "remainingPercentage",
+          "currentAllocatedPercentage",
+          "simulated",
+          "blockingAnomalies",
+          "approvalRequired",
+          "executable"
+        ],
+        "properties": {
+          "remainingPercentage": {
+            "type": "string"
+          },
+          "currentAllocatedPercentage": {
+            "type": "string"
+          },
+          "simulated": {
+            "type": "boolean",
+            "const": true
+          },
+          "blockingAnomalies": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "SHARIA",
+                "ACCOUNTING"
+              ]
+            }
+          },
+          "approvalRequired": {
+            "type": "boolean"
+          },
+          "executable": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecordedAllocation": {
+        "type": "object",
+        "required": [
+          "allocation",
+          "remainingPercentage",
+          "status"
+        ],
+        "properties": {
+          "allocation": {
+            "$ref": "#/components/schemas/AssetAllocation"
+          },
+          "remainingPercentage": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "EXISTING"
+            ]
           }
         },
         "additionalProperties": false

@@ -15,6 +15,11 @@ class MemoryTerms implements ProductTermsRepository {
 const input = { productId: '550e8400-e29b-41d4-a716-446655440001', effectiveFrom: '2026-09-01', investorNisba: '70', bankNisba: '30', indicativeTargetRate: '4.5' };
 
 describe('ManageProductTerms', () => {
+  it('rejects malformed product identifiers before repository access', () => {
+    const repository = new MemoryTerms(); const service = new ManageProductTerms(repository);
+    expect(() => service.simulate({ ...input, productId: 'not-a-uuid' })).toThrow('Product identifier must be a UUID');
+  });
+
   it('produces a deterministic simulation with a non-guarantee notice', () => {
     const service = new ManageProductTerms(new MemoryTerms());
     expect(service.simulate(input)).toEqual(service.simulate(input));
@@ -32,6 +37,11 @@ describe('ManageProductTerms', () => {
     const repository = new MemoryTerms(); const service = new ManageProductTerms(repository);
     const draft = await service.createDraft(input, 'maker', 'terms-create-0002');
     await expect(service.publish(draft.productId, draft.termsVersionId, { businessDate: '2026-08-29', simulationChecksumSha256: 'a'.repeat(64), actorId: 'checker', justification: 'Terms publication approved', idempotencyKey: 'terms-publish-0002' })).rejects.toThrow('does not match');
+  });
+
+  it('rejects malformed terms identifiers and missing checker before loading state', async () => {
+    const service = new ManageProductTerms(new MemoryTerms());
+    await expect(service.publish('not-a-uuid', 'also-not-a-uuid', { businessDate: '2026-08-29', simulationChecksumSha256: 'a'.repeat(64), actorId: '', justification: 'Terms publication approved', idempotencyKey: 'terms-publish-0004' })).rejects.toThrow('Product identifier must be a UUID');
   });
 
   it('replays the same command and rejects key reuse with another payload', async () => {

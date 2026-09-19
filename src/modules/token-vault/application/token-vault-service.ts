@@ -42,6 +42,7 @@ export class TokenVaultService {
     if (!record) { await this.auditEvent(token, context, 'DENIED'); throw new Error('Vault token not found'); }
     try {
       const clearValue = await this.encryption.decrypt(record);
+      if (!clearValue) throw new Error('Vault returned an empty clear value');
       await this.auditEvent(token, context, 'SUCCESS'); return clearValue;
     } catch (error) { await this.auditEvent(token, context, 'FAILURE'); throw error; }
   }
@@ -53,15 +54,17 @@ export class TokenVaultService {
 
   async rotate(token: string, context: { actorId: string; purpose: string; correlationId: string }): Promise<TokenizedValue> {
     assertContext(context); const record = await this.repository.findByToken(token);
-    if (!record) throw new Error('Vault token not found');
-    const clearValue = await this.encryption.decrypt(record);
+    if (!record) { await this.auditEvent(token, context, 'DENIED'); throw new Error('Vault token not found'); }
     try {
+      const clearValue = await this.encryption.decrypt(record);
       const payload = await this.encryption.encrypt(clearValue);
       if (payload.keyVersion === record.keyVersion) throw new Error('KMS did not rotate to a new key version');
       await this.repository.replaceEncryptedPayload(token, record.keyVersion, payload);
+      await this.auditEvent(token, context, 'SUCCESS');
       return { token, dataClass: record.dataClass, vaultKeyVersion: payload.keyVersion };
-    } finally {
-      // The clear value is kept only in this stack frame and is never persisted or logged.
+    } catch (error) {
+      await this.auditEvent(token, context, 'FAILURE').catch(() => undefined);
+      throw error;
     }
   }
 
@@ -72,6 +75,6 @@ export class TokenVaultService {
 
 function assertContext(context: { actorId: string; purpose: string; correlationId: string }): void {
   if (!context.actorId.trim()) throw new TypeError('Vault actor is required'); assertPurpose(context.purpose);
-  if (!/^[0-9a-f-]{36}$/i.test(context.correlationId)) throw new TypeError('Vault correlation identifier must be a UUID');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(context.correlationId)) throw new TypeError('Vault correlation identifier must be a UUID');
 }
 function assertDigest(value: string): void { if (!/^[0-9a-f]{64}$/.test(value)) throw new TypeError('Blind index must be a SHA-256 digest'); }

@@ -10,8 +10,8 @@ export class DocumentsController {
 
   @Post()
   @RequireAuthorization({ operationType: 'REQUEST_DOCUMENT_ARCHIVE', allowedRoles: ['FINANCE_ANALYST','FINANCE_CONTROLLER','RISK_ANALYST','SHARIA_AUDITOR','SYSTEM_ADMIN'], requiredDelegationLevel: 2, sensitive: true })
-  enqueue(@Body() body: Omit<RequestDocumentArchiveCommand, 'actorId'|'idempotencyKey'>, @Headers('idempotency-key') key: string | undefined, @AuthenticatedUser() user: AuthenticatedUserClaims) {
-    return this.handle(() => this.archives.enqueue({ ...body, actorId: user.sub, idempotencyKey: key ?? '' }));
+  enqueue(@Body() body: Omit<RequestDocumentArchiveCommand, 'actorId'|'idempotencyKey'|'correlationId'>, @Headers('idempotency-key') key: string | undefined, @Headers('x-correlation-id') correlationId: string | undefined, @AuthenticatedUser() user: AuthenticatedUserClaims) {
+    return this.handle(() => this.archives.enqueue({ ...body, actorId: user.sub, idempotencyKey: key ?? '', ...(correlationId ? { correlationId } : {}) }));
   }
 
   @Get(':requestId')

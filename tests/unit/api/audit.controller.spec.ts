@@ -31,6 +31,13 @@ describe('AuditController', () => {
     await expect(invoke('25', 'bad action')).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('rejects an invalid request correlation identifier before querying', async () => {
+    const latestWindow = vi.fn().mockResolvedValue({ events: [], matches: [], predecessorExists: [] });
+    const controller = new AuditController(new QueryAuditTrail({ latestWindow }), { append: async () => ({}) } as never);
+    await expect(controller.latest({}, 'not-a-uuid', { sub: 'auditor-1' })).rejects.toBeInstanceOf(BadRequestException);
+    expect(latestWindow).not.toHaveBeenCalled();
+  });
+
   it('passes validated audit filters to the query use case', async () => {
     const latestWindow = vi.fn().mockResolvedValue({ events: [], matches: [], predecessorExists: [] }); const append = vi.fn().mockResolvedValue({});
     const controller = new AuditController(new QueryAuditTrail({ latestWindow }), { append } as never);

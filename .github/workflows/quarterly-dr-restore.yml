@@ -17,6 +17,15 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - name: Validate isolated DR preflight
+        run: pnpm dr:preflight
+        env:
+          DR_MODE: ISOLATED_RESTORE_TEST
+          CORE_DR_URL: ${{ secrets.CORE_DR_URL }}
+          TOKEN_VAULT_DR_URL: ${{ secrets.TOKEN_VAULT_DR_URL }}
+          DR_CONTROL_TOKEN: ${{ secrets.DR_CONTROL_TOKEN }}
+          DR_RPO_TARGET_MS: 300000
+          DR_RTO_TARGET_MS: 3600000
       - run: pnpm dr:exercise
         env:
           DR_MODE: ISOLATED_RESTORE_TEST

@@ -17,17 +17,33 @@ export function approveMassExport(status: ExportStatus, scope: ExportScope, requ
 }
 
 export function assertExportDatasetSafe(dataset: ExportDataset): void {
-  if (!dataset.columns.length) throw new TypeError('Export requires at least one column');
+  if (!dataset || !Array.isArray(dataset.columns) || !Array.isArray(dataset.rows) || !dataset.columns.length) {
+    throw new TypeError('Export requires at least one column');
+  }
   const keys = new Set<string>();
   for (const column of dataset.columns) {
-    if (!/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(column.key) || !column.label.trim() || keys.has(column.key)) throw new TypeError('Export columns must be unique and valid');
+    if (!column || typeof column !== 'object' ||
+      typeof column.key !== 'string' || !/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(column.key) ||
+      typeof column.label !== 'string' || !column.label.trim() || column.label.length > 256 ||
+      (column.personalData !== undefined && typeof column.personalData !== 'boolean') || keys.has(column.key)) {
+      throw new TypeError('Export columns must be unique and valid');
+    }
     keys.add(column.key);
   }
-  for (const row of dataset.rows) for (const column of dataset.columns) {
+  for (const row of dataset.rows) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) throw new TypeError('Export rows must be objects');
+    for (const column of dataset.columns) {
     const value = row[column.key];
     if (value === undefined) throw new TypeError(`Missing export value for ${column.key}`);
+    if (value !== null && !['string', 'number', 'boolean'].includes(typeof value)) {
+      throw new TypeError(`Export values must be scalar: ${column.key}`);
+    }
+    if (typeof value === 'number' && !Number.isFinite(value)) {
+      throw new TypeError(`Export numbers must be finite: ${column.key}`);
+    }
     if (column.personalData && value !== null && (typeof value !== 'string' || !/^tok_[A-Za-z0-9_-]{16,128}$/.test(value))) {
       throw new Error(`Clear personal data is forbidden in exports: ${column.key}`);
+    }
     }
   }
 }

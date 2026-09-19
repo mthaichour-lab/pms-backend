@@ -1,0 +1,29 @@
+{
+  "story": "14.4",
+  "campaignReference": "PARALLEL-2026-08",
+  "period": {
+    "start": "2026-08-01",
+    "end": "2026-08-31"
+  },
+  "generatedAt": "2026-09-19T15:39:04.057Z",
+  "comparedRecordCount": 2,
+  "differenceCount": 1,
+  "differences": [
+    {
+      "key": "ACC-002|DZD",
+      "type": "AMOUNT_DELTA",
+      "pmsAmount": "830.00",
+      "manualAmount": "829.95",
+      "deltaMinorUnits": "5"
+    }
+  ],
+  "requiredRoles": [
+    "FINANCE",
+    "SHARIA",
+    "AUDIT"
+  ],
+  "missingApprovals": [],
+  "legacyToolStatus": "ACTIVE",
+  "blockers": [],
+  "progressiveSwitchDecision": "AUTHORIZED"
+}

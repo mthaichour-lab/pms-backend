@@ -46,6 +46,21 @@ describe('AuthorizationGuard idempotency semantics', () => {
     expect(writer.append).not.toHaveBeenCalled();
   });
 
+  it('rejects malformed correlation identifiers before authorization evaluation', async () => {
+    const writer = audit();
+    const requestContext = context('GET') as any;
+    requestContext.switchToHttp().getRequest().headers['x-correlation-id'] = 'not-a-uuid';
+    await expect(new AuthorizationGuard(reflector, writer).canActivate(requestContext)).rejects.toBeInstanceOf(BadRequestException);
+    expect(writer.append).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed idempotency keys on sensitive writes', async () => {
+    const writer = audit();
+    const requestContext = context('POST') as any;
+    requestContext.switchToHttp().getRequest().headers['idempotency-key'] = '                ';
+    await expect(new AuthorizationGuard(reflector, writer).canActivate(requestContext)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('durably records a denied decision before returning forbidden', async () => {
     const writer = audit();
     const guard = new AuthorizationGuard(reflector, writer);

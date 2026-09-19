@@ -6,6 +6,7 @@ import { createPostgresPool } from '../../../../src/infrastructure/persistence/p
 @Injectable()
 export class PostgresDatabaseService implements OnApplicationShutdown {
   readonly pool: Pool;
+  private shutdownPromise: Promise<void> | undefined;
 
   constructor() {
     const databaseUrl = process.env['DATABASE_URL'];
@@ -49,17 +50,17 @@ export class PostgresDatabaseService implements OnApplicationShutdown {
       client = await Promise.race([acquisition, deadline]);
 
       const probe = (async () => {
-      try {
-        await client!.query('BEGIN');
-        transactionStarted = true;
-        await client!.query("SELECT set_config('statement_timeout', $1, true)", [`${timeoutMs}ms`]);
-        await client!.query('SELECT 1 AS ready');
-        await client!.query('COMMIT');
-        transactionStarted = false;
-      } catch (error) {
-        if (transactionStarted && !timedOut) await client!.query('ROLLBACK').catch(() => undefined);
-        throw error;
-      }
+        try {
+          await client!.query('BEGIN');
+          transactionStarted = true;
+          await client!.query("SELECT set_config('statement_timeout', $1, true)", [`${timeoutMs}ms`]);
+          await client!.query('SELECT 1 AS ready');
+          await client!.query('COMMIT');
+          transactionStarted = false;
+        } catch (error) {
+          if (transactionStarted && !timedOut) await client!.query('ROLLBACK').catch(() => undefined);
+          throw error;
+        }
       })();
 
       await Promise.race([probe, deadline]);
@@ -73,6 +74,7 @@ export class PostgresDatabaseService implements OnApplicationShutdown {
   }
 
   async onApplicationShutdown(): Promise<void> {
-    await this.pool.end();
+    this.shutdownPromise ??= this.pool.end();
+    await this.shutdownPromise;
   }
 }

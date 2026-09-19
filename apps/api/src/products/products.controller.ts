@@ -76,7 +76,7 @@ export class ProductsController {
     try { return await operation(); }
     catch (error) {
       if (error instanceof TypeError || error instanceof RangeError) throw new BadRequestException(error.message);
-      if (error instanceof Error && error.message.startsWith('Investment product not found')) throw new NotFoundException(error.message);
+      if (error instanceof Error && (error.message.startsWith('Investment product not found') || error.message.startsWith('Product terms not found'))) throw new NotFoundException(error.message);
       if (error instanceof Error) throw new ConflictException(error.message);
       throw error;
     }

@@ -26,4 +26,27 @@ describe('TokenVaultService', () => {
     const test = fixtures(); await expect(test.service.detokenize('tok_abcdefghijklmnop', context)).rejects.toThrow('not found');
     expect(test.audit.append).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'DENIED' })); expect(test.encryption.decrypt).not.toHaveBeenCalled();
   });
+
+  it('rejects an empty decrypted value and records a failure', async () => {
+    const test = fixtures({ token: 'tok_abcdefghijklmnop', dataClass: 'CUSTOMER_ID', searchDigestSha256: 'a'.repeat(64), ...encrypted, createdAt: '2026-08-29T00:00:00.000Z' });
+    vi.mocked(test.encryption.decrypt).mockResolvedValueOnce('');
+    await expect(test.service.detokenize('tok_abcdefghijklmnop', context)).rejects.toThrow('empty clear value');
+    expect(test.audit.append).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'FAILURE' }));
+  });
+
+  it('audits KMS failures during rotation and does not replace the payload', async () => {
+    const record = { token: 'tok_abcdefghijklmnop', dataClass: 'CUSTOMER_ID' as const, searchDigestSha256: 'a'.repeat(64), ...encrypted, createdAt: '2026-08-29T00:00:00.000Z' };
+    const test = fixtures(record);
+    vi.mocked(test.encryption.decrypt).mockRejectedValueOnce(new Error('KMS unavailable'));
+    await expect(test.service.rotate(record.token, context)).rejects.toThrow('KMS unavailable');
+    expect(test.repository.replaceEncryptedPayload).not.toHaveBeenCalled();
+    expect(test.audit.append).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'FAILURE', correlationId: context.correlationId }));
+  });
+
+  it('audits a denied rotation without calling KMS', async () => {
+    const test = fixtures();
+    await expect(test.service.rotate('tok_abcdefghijklmnop', context)).rejects.toThrow('not found');
+    expect(test.encryption.decrypt).not.toHaveBeenCalled();
+    expect(test.audit.append).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'DENIED' }));
+  });
 });

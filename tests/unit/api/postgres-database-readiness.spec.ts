@@ -96,4 +96,39 @@ describe('PostgresDatabaseService readiness', () => {
       vi.useRealTimers();
     }
   });
+
+  it('destroys the client when rollback itself stalls beyond the global deadline', async () => {
+    vi.useFakeTimers();
+    try {
+      const query = vi.fn((sql: string) => {
+        if (sql === 'SELECT 1 AS ready') return Promise.reject(new Error('probe failed'));
+        if (sql === 'ROLLBACK') return new Promise(() => undefined);
+        return Promise.resolve({ rows: [] });
+      });
+      const release = vi.fn();
+      const database = Object.create(PostgresDatabaseService.prototype) as PostgresDatabaseService;
+      Object.defineProperty(database, 'pool', { value: { connect: async () => ({ query, release }) } });
+
+      const readiness = database.readiness(100);
+      const rejection = expect(readiness).rejects.toThrow('timed out after 100ms');
+      await vi.advanceTimersByTimeAsync(100);
+
+      await rejection;
+      expect(query).toHaveBeenLastCalledWith('ROLLBACK');
+      expect(release).toHaveBeenCalledOnce();
+      expect(release.mock.calls[0]?.[0]).toBeInstanceOf(Error);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ends the pool only once when shutdown is requested repeatedly', async () => {
+    const end = vi.fn(async () => undefined);
+    const database = Object.create(PostgresDatabaseService.prototype) as PostgresDatabaseService;
+    Object.defineProperty(database, 'pool', { value: { end } });
+
+    await Promise.all([database.onApplicationShutdown(), database.onApplicationShutdown()]);
+
+    expect(end).toHaveBeenCalledOnce();
+  });
 });

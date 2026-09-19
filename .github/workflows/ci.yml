@@ -31,6 +31,8 @@ jobs:
       - run: pnpm run token-vault:verify
       - run: pnpm run typecheck
       - run: pnpm run test
+      - name: Run isolated DR simulation without production secrets
+        run: pnpm run dr:simulate-local
       - name: Analyze source with CodeQL
         uses: github/codeql-action/analyze@fddeee1a7ece751b577e409a89057319e3172939
       - run: pnpm audit --audit-level high --prod

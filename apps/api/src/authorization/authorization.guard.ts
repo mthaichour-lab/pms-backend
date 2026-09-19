@@ -48,8 +48,8 @@ export class AuthorizationGuard implements CanActivate {
       .switchToHttp()
       .getRequest<AuthorizationHttpRequest>();
     const correlationId = request.headers['x-correlation-id'];
-    if (typeof correlationId !== 'string' || correlationId.trim() === '') {
-      throw new BadRequestException('X-Correlation-Id header is required');
+    if (typeof correlationId !== 'string' || !isUuid(correlationId)) {
+      throw new BadRequestException('X-Correlation-Id header must be a UUID');
     }
 
     const policy = this.reflector.getAllAndOverride<AuthorizationPolicy>(
@@ -59,7 +59,7 @@ export class AuthorizationGuard implements CanActivate {
     if (!policy) return true;
     if (policy.sensitive && !isSafeMethod(request.method)) {
       const idempotencyKey = request.headers['idempotency-key'];
-      if (typeof idempotencyKey !== 'string' || idempotencyKey.length < 16) {
+      if (typeof idempotencyKey !== 'string' || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
         throw new BadRequestException(
           'Idempotency-Key header is required for sensitive operations',
         );
@@ -176,4 +176,8 @@ function isSafeMethod(method: string): boolean {
 
 function asOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }

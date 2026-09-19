@@ -23,7 +23,10 @@ const controls = {
   ],
   '002_outbox_leases.sql': ['locked_by text', 'locked_until timestamptz'],
   '003_audit_signatures.sql': ['signing_key_id text NOT NULL', 'signature_base64 text NOT NULL'],
-  '004_currency_reference.sql': ['currency_version_no_overlap', "daterange(valid_from, valid_until, '[)')"],
+  '004_currency_reference.sql': [
+    'CREATE TABLE IF NOT EXISTS reference.currency', 'reference.register_currency_identity',
+    'currency_version_no_overlap', "daterange(valid_from, valid_until, '[)')",
+  ],
   '005_cbs_ingestion.sql': ['integration.cbs_batch', "'QUARANTINED'", 'sequence_number'],
   '006_cbs_batch_transitions.sql': ['guard_cbs_batch_transition', 'cbs_batch_state_history'],
   '007_investment_accounts.sql': ['investment.account', 'investment.position_snapshot', 'numeric(30, 12)'],
@@ -83,6 +86,13 @@ const controls = {
   '052_secure_report_exports.sql': ['reporting.secure_export', 'PENDING_REINFORCED_APPROVAL', 'approved_by<>requester_id', 'Secure export approval history is append-only', 'Generated secure export is immutable'],
   '053_quotation_basis_dimensions.sql': ['financing_type', 'customer_token', 'designated_project_code', 'clear customer identifiers are forbidden'],
   '055_document_archive_request.sql': ['document.archive_request', "status IN ('QUEUED','ARCHIVED')", 'idempotency_key text NOT NULL UNIQUE', 'paperless_document_id'],
+  '056_investment_subscription_command_idempotency.sql': ['investment.subscription_command', 'pg_advisory_xact_lock', 'result_snapshot jsonb NOT NULL', 'subscription_command_immutable'],
+  '057_secure_export_expiration.sql': [
+    'expires_at timestamptz', 'secure_export_expiration_after_creation',
+    'DISABLE TRIGGER generated_secure_export_immutable',
+    'ENABLE TRIGGER generated_secure_export_immutable', "TG_OP = 'DELETE'",
+    'RETURN OLD', 'secure_export_expiration_idx',
+  ],
 };
 
 for (const [filename, fragments] of Object.entries(controls)) {

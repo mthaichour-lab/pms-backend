@@ -25,6 +25,9 @@ export class AuditController {
     @AuthenticatedUser() user: AuthenticatedUserClaims,
   ) {
     try {
+      if (correlationId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(correlationId)) {
+        throw new TypeError('Correlation identifier must be a UUID');
+      }
       if (query.limit !== undefined && !/^[1-9][0-9]{0,2}$/.test(query.limit)) throw new RangeError('Audit trail limit must be a decimal integer between 1 and 200');
       const limit = query.limit === undefined ? 50 : Number(query.limit);
       const filters = { action: query.action, resourceType: query.resourceType, outcome: query.outcome, correlationId: query.correlationId, businessDateFrom: query.businessDateFrom, businessDateTo: query.businessDateTo };

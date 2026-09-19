@@ -7,12 +7,21 @@ export class PostgresDcrRepository implements DcrRepository {
 
   async calculateAtomically(command: CalculateDcrCommand, calculate: (input: DcrInput) => DcrResult) {
     const client = await this.pool.connect();
+    let transactionStarted = false;
     try {
       await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
+      transactionStarted = true;
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+        [`dcr:${command.poolId}:${command.businessDate}:${command.formulaVersion}:${command.inputChecksumSha256}`],
+      );
       const reference = await client.query<{ amount_scale: number }>(
-        `SELECT c.amount_scale FROM reference.currency c
+        `SELECT c.fraction_digits AS amount_scale FROM reference.currency_version c
          JOIN pooling.pool p ON p.currency_code = c.currency_code
-         WHERE p.pool_id = $1 AND c.currency_code = $2`, [command.poolId, command.currency],
+         WHERE p.pool_id = $1 AND c.currency_code = $2
+           AND c.valid_from <= $3::date
+           AND (c.valid_until IS NULL OR c.valid_until > $3::date)
+         ORDER BY c.valid_from DESC LIMIT 1`, [command.poolId, command.currency, command.businessDate],
       );
       if (!reference.rows[0]) throw new Error('Pool or matching currency not found');
       const result = calculate({
@@ -35,20 +44,30 @@ export class PostgresDcrRepository implements DcrRepository {
           command.formulaVersion, command.inputChecksumSha256, command.actorId],
       );
       let dcrCalculationId = inserted.rows[0]?.dcr_calculation_id;
+      let response = result;
       if (!dcrCalculationId) {
         const replay = await client.query<{ dcr_calculation_id: string; dcr_value: string; threshold: string; state: DcrResult['state'] }>(
           `SELECT dcr_calculation_id::text, dcr_value::text, threshold::text, state
            FROM risk.dcr_calculation WHERE pool_id = $1 AND business_date = $2::date
              AND formula_version = $3 AND input_checksum_sha256 = $4
-             AND capital_duration_amount = $5::numeric AND risk_weighted_duration_amount = $6::numeric`,
+             AND capital_duration_amount = $5::numeric AND risk_weighted_duration_amount = $6::numeric
+             AND currency_code = $7 AND threshold = $8::numeric AND calculated_by = $9
+           FOR SHARE`,
           [command.poolId, command.businessDate, command.formulaVersion, command.inputChecksumSha256,
-            command.capitalDurationAmount, command.riskWeightedDurationAmount],
+            command.capitalDurationAmount, command.riskWeightedDurationAmount, command.currency,
+            command.threshold, command.actorId],
         );
         if (!replay.rows[0]) throw new Error('DCR replay payload differs');
-        dcrCalculationId = replay.rows[0].dcr_calculation_id;
+        const snapshot = replay.rows[0];
+        dcrCalculationId = snapshot.dcr_calculation_id;
+        response = { value: snapshot.dcr_value, threshold: snapshot.threshold, state: snapshot.state };
       }
       await client.query('COMMIT');
-      return { ...result, dcrCalculationId };
-    } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+      transactionStarted = false;
+      return { ...response, dcrCalculationId };
+    } catch (error) {
+      if (transactionStarted) await client.query('ROLLBACK');
+      throw error;
+    } finally { client.release(); }
   }
 }

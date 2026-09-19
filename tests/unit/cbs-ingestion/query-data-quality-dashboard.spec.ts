@@ -11,4 +11,11 @@ describe('QueryDataQualityDashboard', () => {
     const query = new QueryDataQualityDashboard({ list: vi.fn() });
     expect(() => query.execute({ limit: 201 })).toThrow('Limit must be between 1 and 200');
   });
+  it('rejects impossible dates and unknown batch states before querying', () => {
+    const list = vi.fn();
+    const query = new QueryDataQualityDashboard({ list });
+    expect(() => query.execute({ businessDate: '2026-02-30' })).toThrow('business date');
+    expect(() => query.execute({ state: 'UNKNOWN' })).toThrow('batch state');
+    expect(list).not.toHaveBeenCalled();
+  });
 });

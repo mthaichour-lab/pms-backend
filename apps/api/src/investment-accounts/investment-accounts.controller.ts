@@ -17,11 +17,22 @@ export class InvestmentAccountsController {
 
   @Post('subscriptions')
   @RequireAuthorization({operationType:'CREATE_INVESTMENT_SUBSCRIPTION',allowedRoles:['RELATIONSHIP_MANAGER','SYSTEM_ADMIN'],requiredDelegationLevel:2,sensitive:true})
-  createSubscription(@Body() body: Omit<InvestmentSubscriptionState,'status'|'openedOn'|'closedOn'|'acceptance'>,@Headers('idempotency-key') key:string|undefined,@AuthenticatedUser() user:AuthenticatedUserClaims){return this.subscriptionRun(()=>this.subscriptions.create(body,user.sub,key??''));}
+  createSubscription(
+    @Body() body: Omit<InvestmentSubscriptionState,'status'|'openedOn'|'closedOn'|'acceptance'>,
+    @Headers('idempotency-key') key:string|undefined,
+    @Headers('x-correlation-id') correlationId:string|undefined,
+    @AuthenticatedUser() user:AuthenticatedUserClaims,
+  ){return this.subscriptionRun(()=>this.subscriptions.create(body,user.sub,key??'',correlationId??''));}
 
   @Post('subscriptions/:accountId/actions')
   @RequireAuthorization({operationType:'TRANSITION_INVESTMENT_SUBSCRIPTION',allowedRoles:['RELATIONSHIP_MANAGER','FINANCE_CONTROLLER','SYSTEM_ADMIN'],requiredDelegationLevel:2,sensitive:true})
-  action(@Param('accountId')accountId:string,@Body()body:Omit<SubscriptionAction,'actorId'>,@Headers('idempotency-key')key:string|undefined,@AuthenticatedUser()user:AuthenticatedUserClaims){return this.subscriptionRun(()=>this.subscriptions.act(accountId,{...body,actorId:user.sub},key??''));}
+  action(
+    @Param('accountId')accountId:string,
+    @Body()body:Omit<SubscriptionAction,'actorId'>,
+    @Headers('idempotency-key')key:string|undefined,
+    @Headers('x-correlation-id')correlationId:string|undefined,
+    @AuthenticatedUser()user:AuthenticatedUserClaims,
+  ){return this.subscriptionRun(()=>this.subscriptions.act(accountId,{...body,actorId:user.sub},key??'',correlationId??''));}
 
   @Get(':accountId')
   async getAccount(

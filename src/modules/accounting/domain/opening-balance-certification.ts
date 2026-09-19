@@ -18,10 +18,14 @@ export function certifyOpeningBalances(input: {
   certificationId: string;
   signedBy: string;
   signedAt: string;
+  correlationId?: string;
   lines: readonly OpeningBalanceEvidence[];
 }) {
   if (!input.signedBy.trim()) throw new TypeError('Finance signer is required');
   if (Number.isNaN(Date.parse(input.signedAt))) throw new TypeError('Finance signature timestamp is invalid');
+  if (input.correlationId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.correlationId.trim())) {
+    throw new TypeError('Opening balance correlation identifier must be a UUID');
+  }
   const seen = new Set<OpeningBalanceComponent>();
   const lines = input.lines.map((line) => {
     if (seen.has(line.component)) throw new TypeError(`Duplicate opening balance component: ${line.component}`);
@@ -37,5 +41,5 @@ export function certifyOpeningBalances(input: {
   const missing = openingBalanceComponents.filter((component) => !seen.has(component));
   if (missing.length) throw new Error(`Opening balance certification is incomplete: ${missing.join(', ')}`);
   const checksumSha256 = createHash('sha256').update(JSON.stringify([...lines].sort((a, b) => a.component.localeCompare(b.component)))).digest('hex');
-  return { ...input, signedBy: input.signedBy.trim(), status: 'CERTIFIED' as const, checksumSha256, lines };
+  return { ...input, signedBy: input.signedBy.trim(), ...(input.correlationId ? { correlationId: input.correlationId.trim().toLowerCase() } : {}), status: 'CERTIFIED' as const, checksumSha256, lines };
 }

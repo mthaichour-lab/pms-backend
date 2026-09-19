@@ -16,6 +16,7 @@ FROM dependencies AS build
 COPY tsconfig.json tsconfig.build.json ./
 COPY apps ./apps
 COPY src ./src
+COPY libs ./libs
 COPY packages ./packages
 RUN pnpm run build
 

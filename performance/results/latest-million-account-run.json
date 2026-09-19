@@ -1,13 +1,13 @@
 {
   "story": "14.1",
-  "executedAt": "2026-08-30T20:31:55.172Z",
+  "executedAt": "2026-09-19T17:40:49.054Z",
   "targetAccounts": 1000000,
   "processedAccounts": 1000000,
   "poolCount": 8,
   "parallelization": "worker-thread-per-pool",
-  "durationMs": 77.68,
+  "durationMs": 172.63,
   "closingWindowMs": 1800000,
-  "throughputAccountsPerSecond": 12874005.97,
+  "throughputAccountsPerSecond": 5792591.62,
   "withinClosingWindow": true,
   "pools": [
     {

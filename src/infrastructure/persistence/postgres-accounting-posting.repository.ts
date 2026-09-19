@@ -39,8 +39,10 @@ export class PostgresAccountingPostingRepository implements AccountingPostingRep
         distributable_amount: string; currency_code: string; amount_scale: number;
       }>(
         `SELECT r.status, r.maker_id, r.business_date::text, r.correlation_id::text,
-                r.distributable_amount::text, r.currency_code, p.amount_scale
-         FROM calculation.run r JOIN pooling.pool p ON p.pool_id = r.pool_id
+                r.distributable_amount::text, r.currency_code, c.fraction_digits AS amount_scale
+         FROM calculation.run r JOIN reference.currency_version c ON c.currency_code = r.currency_code
+          AND c.valid_from <= r.business_date
+          AND (c.valid_until IS NULL OR c.valid_until > r.business_date)
          WHERE r.run_id = $1::uuid FOR UPDATE`, [command.runId],
       );
       const run = runResult.rows[0];
@@ -82,15 +84,24 @@ export class PostgresAccountingPostingRepository implements AccountingPostingRep
         `UPDATE accounting.journal_entry SET status = 'POSTED', posted_at = clock_timestamp()
          WHERE journal_entry_id = $1::uuid AND status = 'DRAFT'`, [journalEntryId],
       );
-      await client.query(
+      const posted = await client.query(
         `UPDATE calculation.run SET status = 'POSTED' WHERE run_id = $1::uuid AND status = 'APPROVED'`,
         [command.runId],
       );
+      if (posted.rowCount !== 1) throw new Error('Calculation run was concurrently modified');
       await client.query(
         `INSERT INTO workflow.approval_action
            (idempotency_key, resource_type, resource_id, action, actor_id, justification, result_state)
          VALUES ($1, 'CalculationRun', $2, 'POST_CALCULATION', $3, $4, 'POSTED')`,
         [command.idempotencyKey, command.runId, command.actorId, command.justification],
+      );
+      await client.query(
+        `INSERT INTO integration.outbox_event
+          (event_id, aggregate_type, aggregate_id, event_type, schema_version, correlation_id, payload, occurred_at)
+         VALUES (gen_random_uuid(), 'JournalEntry', $1, 'CalculationPosted.v1', 1,
+                 gen_random_uuid(), jsonb_build_object('runId', $2, 'journalEntryId', $1,
+                   'idempotencyKey', $3), clock_timestamp())`,
+        [journalEntryId, command.runId, command.idempotencyKey],
       );
       await client.query('COMMIT');
       return { state: 'POSTED', journalEntryId };

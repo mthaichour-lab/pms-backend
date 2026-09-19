@@ -30,6 +30,8 @@
     "start:queue-scaler": "node deploy/autoscaling/queue-depth-scaler.mjs",
     "performance:million": "node performance/million-account-calculation.mjs",
     "dr:exercise": "node deploy/dr/run-failover-drill.mjs",
+    "dr:simulate-local": "vitest run tests/unit/dr/failover-drill-local.spec.ts",
+    "dr:preflight": "node deploy/dr/preflight.mjs",
     "dr:verify": "node deploy/dr/verify-failover-evidence.mjs",
     "pentest:gate": "node security/pentest/evaluate-pentest.mjs",
     "pentest:verify-fixture": "node security/pentest/verify-gate-fixture.mjs",

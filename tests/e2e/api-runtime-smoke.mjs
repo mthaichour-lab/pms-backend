@@ -5,6 +5,7 @@ const child = spawn(process.execPath, ['dist/apps/api/src/main.js'], {
   env: {
     ...process.env,
     PORT: String(port),
+    OTEL_SDK_DISABLED: 'true',
     DATABASE_URL: 'postgresql://smoke:smoke@127.0.0.1:9/pms',
     OIDC_ISSUER: 'http://127.0.0.1:9/realms/smoke',
     KMS_URL: 'http://127.0.0.1:9',
@@ -41,15 +42,24 @@ try {
   }
   console.log('Compiled API started; independent liveness, database readiness failure and Prometheus metrics passed.');
 } finally {
+  const exit = waitForExit(child, 2_000);
   child.kill('SIGTERM');
-  await Promise.race([
-    new Promise((resolve) => child.once('exit', resolve)),
-    new Promise((resolve) => setTimeout(resolve, 2_000)),
-  ]);
+  const result = await exit;
+  if (!result.exited) {
+    child.kill('SIGKILL');
+    await waitForExit(child, 2_000);
+    throw new Error(`API did not exit within 2000ms after SIGTERM:\n${logs}`);
+  }
+  if (result.code !== null && result.code !== 0) {
+    throw new Error(`API exited with code ${result.code} during shutdown:\n${logs}`);
+  }
+  console.log('API process exited within the shutdown deadline.');
 }
 
 async function waitFor(url) {
-  const deadline = Date.now() + 10_000;
+  // Compiled Nest startup can exceed 10s on a cold CI runner; keep the smoke
+  // deterministic without weakening the endpoint assertions below.
+  const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
     if (child.exitCode !== null) throw new Error(`API exited before startup:\n${logs}`);
     try {
@@ -59,4 +69,26 @@ async function waitFor(url) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(`API startup timed out:\n${logs}`);
+}
+
+function waitForExit(processToWatch, timeoutMs) {
+  if (processToWatch.exitCode !== null || processToWatch.signalCode !== null) {
+    return Promise.resolve({
+      exited: true,
+      code: processToWatch.exitCode,
+      signal: processToWatch.signalCode,
+    });
+  }
+
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      processToWatch.off('exit', onExit);
+      resolve({ exited: false, code: null, signal: null });
+    }, timeoutMs);
+    const onExit = (code, signal) => {
+      clearTimeout(timeout);
+      resolve({ exited: true, code, signal });
+    };
+    processToWatch.once('exit', onExit);
+  });
 }

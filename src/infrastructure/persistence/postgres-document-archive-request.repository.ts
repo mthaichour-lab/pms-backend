@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { DocumentArchiveRequestRepository, RequestDocumentArchiveCommand } from '../../modules/documents/application/request-document-archive.js';
 import type { DocumentArchiveRequestView, DocumentArchiveStatus } from '../../modules/documents/domain/document-archive-request.js';
@@ -25,9 +26,9 @@ export class PostgresDocumentArchiveRequestRepository implements DocumentArchive
       if (requestId) {
         await client.query(
           `INSERT INTO integration.outbox_event(event_id,aggregate_type,aggregate_id,event_type,schema_version,correlation_id,payload,occurred_at)
-           VALUES(gen_random_uuid(),'Document', $1, 'pms.document.archive-requested.v1', 1, gen_random_uuid(),
+           VALUES(gen_random_uuid(),'Document', $1, 'pms.document.archive-requested.v1', 1, $8::uuid,
              jsonb_build_object('requestId',$1,'objectKey',$2,'businessType',$3,'businessId',$4,'classification',$5,'actorId',$6,'evidentiary',$7),clock_timestamp())`,
-          [requestId, command.objectKey, command.businessType, command.businessId, command.classification, command.actorId, command.evidentiary],
+          [requestId, command.objectKey, command.businessType, command.businessId, command.classification, command.actorId, command.evidentiary, command.correlationId ?? randomUUID()],
         );
       } else {
         const replay = await client.query<RequestRow>(`SELECT * FROM document.archive_request WHERE idempotency_key=$1 FOR UPDATE`, [command.idempotencyKey]);

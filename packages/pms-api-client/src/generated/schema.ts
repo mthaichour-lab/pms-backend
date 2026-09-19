@@ -167,6 +167,21 @@ export type AssetAllocation = {
   readonly approvalId?: string;
 };
 
+export type AllocationSimulation = {
+  readonly remainingPercentage: string;
+  readonly currentAllocatedPercentage: string;
+  readonly simulated: true;
+  readonly blockingAnomalies: readonly string[];
+  readonly approvalRequired: boolean;
+  readonly executable: boolean;
+};
+
+export type RecordedAllocation = {
+  readonly allocation: AssetAllocation;
+  readonly remainingPercentage: string;
+  readonly status: string;
+};
+
 export type CompositionBucket = {
   readonly bucket: string;
   readonly amount: string;

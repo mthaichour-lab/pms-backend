@@ -25,6 +25,7 @@ for (const fragment of [
   "FROM node:24-alpine AS production-dependencies",
   "pnpm install --prod --frozen-lockfile --ignore-scripts",
   "COPY packages/pms-api-client/package.json",
+  "COPY libs ./libs",
   "USER pms",
 ])
   if (!dockerfile.includes(fragment))
@@ -205,11 +206,21 @@ const instrumentation = await readFile(
 for (const fragment of [
   "startTelemetry",
   "stopTelemetry",
-  "SIGTERM",
+  "shutdownTelemetry",
   "pms-api",
 ]) {
   if (!instrumentation.includes(fragment))
     failures.push(`API telemetry lifecycle control: ${fragment}`);
+}
+const apiMain = await readFile("apps/api/src/main.ts", "utf8");
+for (const fragment of [
+  'process.once("SIGTERM"',
+  'process.once("SIGINT"',
+  "await app.close()",
+  "await shutdownTelemetry()",
+]) {
+  if (!apiMain.includes(fragment))
+    failures.push(`API coordinated shutdown control: ${fragment}`);
 }
 const collector = await readFile(
   "deploy/observability/otel-collector.yml",

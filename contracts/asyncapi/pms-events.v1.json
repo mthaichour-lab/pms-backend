@@ -135,7 +135,7 @@
           "properties": {
             "resourceType": { "type": "string", "minLength": 1 },
             "resourceId": { "type": "string", "minLength": 1 },
-            "action": { "type": "string", "enum": ["CONTROL_CALCULATION", "APPROVE_CALCULATION", "APPROVE_CLOSING", "REJECT_CLOSING"] },
+            "action": { "type": "string", "enum": ["CONTROL_CALCULATION", "APPROVE_CALCULATION", "APPROVE_CLOSING", "REJECT_CLOSING", "CREATE_SECURE_EXPORT", "APPROVE_MASS_EXPORT", "GENERATE_SECURE_EXPORT"] },
             "actorId": { "type": "string", "minLength": 1 },
             "justification": { "type": "string", "minLength": 10 },
             "resultState": { "type": "string", "minLength": 1 },

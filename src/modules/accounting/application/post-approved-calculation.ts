@@ -30,7 +30,7 @@ export class PostApprovedCalculation {
     }
     if (!command.actorId.trim()) throw new TypeError('Posting actor is required');
     if (command.justification.trim().length < 10) throw new TypeError('Posting justification must contain at least 10 characters');
-    if (command.idempotencyKey.length < 16 || command.idempotencyKey.length > 128) {
+    if (command.idempotencyKey.trim().length < 16 || command.idempotencyKey.trim().length > 128) {
       throw new TypeError('Posting idempotency key must contain between 16 and 128 characters');
     }
     return this.repository.postAtomically(

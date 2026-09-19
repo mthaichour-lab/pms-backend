@@ -10,11 +10,15 @@ export class PostgresWorkflowApprovalRepository implements WorkflowApprovalRepos
 
   async transition(command: WorkflowApprovalCommand): Promise<{ state: string }> {
     const client = await this.pool.connect();
+    let transactionStarted = false;
     try {
       await client.query('BEGIN');
+      transactionStarted = true;
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`workflow.approval.${command.idempotencyKey}`]);
       const replay = await existingAction(client, command);
       if (replay) {
         await client.query('COMMIT');
+        transactionStarted = false;
         return { state: replay };
       }
       const transition = command.action === 'APPROVE_CLOSING' || command.action === 'REJECT_CLOSING'
@@ -31,9 +35,10 @@ export class PostgresWorkflowApprovalRepository implements WorkflowApprovalRepos
       );
       await insertAuditIntent(client, command, state, businessDate);
       await client.query('COMMIT');
+      transactionStarted = false;
       return { state };
     } catch (error) {
-      await client.query('ROLLBACK');
+      if (transactionStarted) await client.query('ROLLBACK').catch(() => undefined);
       throw error;
     } finally {
       client.release();
@@ -102,6 +107,7 @@ async function transitionCalculation(
   if (!run) throw new Error('Calculation run not found');
   if (!run.maker_id) throw new Error('Calculation run has no Maker identity');
   if (run.maker_id === command.actorId) throw new Error('Maker cannot control or approve their own calculation');
+  if (command.action === 'APPROVE_CALCULATION' && run.controller_id === command.actorId) throw new Error('Controller cannot approve their own controlled calculation');
   if (command.action === 'CONTROL_CALCULATION') {
     if (run.status !== 'CALCULATED') throw new Error(`Calculation cannot be controlled from ${run.status}`);
     await client.query(

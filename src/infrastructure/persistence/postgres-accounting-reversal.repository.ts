@@ -39,12 +39,19 @@ export class PostgresAccountingReversalRepository implements AccountingReversalR
       const originalResult = await client.query<{
         status: string; entry_kind: string; correlation_id: string; created_by: string; amount_scale: number;
       }>(
-        `SELECT j.status, j.entry_kind, j.correlation_id::text, j.created_by, c.amount_scale
+        `SELECT j.status, j.entry_kind, j.correlation_id::text, j.created_by,
+                c.fraction_digits AS amount_scale
          FROM accounting.journal_entry j
-         JOIN reference.currency c ON c.currency_code = (
-           SELECT currency_code FROM accounting.journal_line
-           WHERE journal_entry_id = j.journal_entry_id ORDER BY line_number LIMIT 1
-         )
+         JOIN LATERAL (
+           SELECT version.fraction_digits
+           FROM reference.currency_version version
+           WHERE version.currency_code = (
+             SELECT currency_code FROM accounting.journal_line
+             WHERE journal_entry_id = j.journal_entry_id ORDER BY line_number LIMIT 1
+           ) AND version.valid_from <= j.business_date
+             AND (version.valid_until IS NULL OR version.valid_until > j.business_date)
+           ORDER BY version.valid_from DESC LIMIT 1
+         ) c ON true
          WHERE j.journal_entry_id = $1::uuid FOR UPDATE OF j`, [command.journalEntryId],
       );
       const original = originalResult.rows[0];
@@ -87,6 +94,14 @@ export class PostgresAccountingReversalRepository implements AccountingReversalR
            (idempotency_key, resource_type, resource_id, action, actor_id, justification, result_state)
          VALUES ($1, 'JournalEntry', $2, 'REVERSE_JOURNAL', $3, $4, 'POSTED')`,
         [command.idempotencyKey, command.journalEntryId, command.actorId, command.justification],
+      );
+      await client.query(
+        `INSERT INTO integration.outbox_event
+          (event_id, aggregate_type, aggregate_id, event_type, schema_version, correlation_id, payload, occurred_at)
+         VALUES (gen_random_uuid(), 'JournalEntry', $1, 'JournalEntryReversed.v1', 1,
+                 gen_random_uuid(), jsonb_build_object('originalJournalEntryId', $2,
+                   'reversalJournalEntryId', $1, 'businessDate', $3, 'idempotencyKey', $4), clock_timestamp())`,
+        [reversalJournalEntryId, command.journalEntryId, command.reversalBusinessDate, command.idempotencyKey],
       );
       await client.query('COMMIT');
       return { state: 'POSTED', reversalJournalEntryId };
