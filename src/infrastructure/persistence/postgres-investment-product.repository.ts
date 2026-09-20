@@ -1,4 +1,4 @@
-import type { InvestmentProductRepository, ProductCommand } from '../../modules/products/application/manage-investment-product.js';
+import type { InvestmentProductRepository, ProductCommand, ProductListPage, ProductListQuery } from '../../modules/products/application/manage-investment-product.js';
 import type { InvestmentProductState, ProductTransition } from '../../modules/products/domain/investment-product.js';
 import type { Pool } from 'pg';
 import { assertProductPublishable } from './postgres-product-reference.repository.js';
@@ -47,6 +47,21 @@ export class PostgresInvestmentProductRepository implements InvestmentProductRep
                sharia_reference, validated_by, status FROM product.investment_product WHERE product_id = $1::uuid`, [productId]);
     const row = result.rows[0];
     return row ? mapRow(row) : undefined;
+  }
+
+  async list(input: ProductListQuery): Promise<ProductListPage> {
+    const [products, count] = await Promise.all([
+      this.pool.query<ProductRow>(
+        `SELECT product_id::text, product_code, product_name, investor_nisba::text, bank_nisba::text,
+                sharia_reference, validated_by, status
+         FROM product.investment_product
+         ORDER BY product_code ASC, product_id ASC
+         LIMIT $1 OFFSET $2`,
+        [input.limit, input.offset],
+      ),
+      this.pool.query<{ total: string }>('SELECT count(*)::text AS total FROM product.investment_product'),
+    ]);
+    return { items: products.rows.map(mapRow), total: Number(count.rows[0]?.total ?? 0) };
   }
 
   async saveTransition(state: InvestmentProductState, transition: ProductTransition, command: ProductCommand): Promise<InvestmentProductState> {

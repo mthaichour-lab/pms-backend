@@ -5,8 +5,12 @@ export interface InvestmentProductRepository {
   findIdempotent(idempotencyKey: string, requestHash: string): Promise<InvestmentProductState | undefined>;
   create(state: InvestmentProductState, actorId: string, command: ProductCommand): Promise<InvestmentProductState>;
   findById(productId: string): Promise<InvestmentProductState | undefined>;
+  list(input: ProductListQuery): Promise<ProductListPage>;
   saveTransition(state: InvestmentProductState, transition: ProductTransition, command: ProductCommand): Promise<InvestmentProductState>;
 }
+
+export interface ProductListQuery { limit: number; offset: number; }
+export interface ProductListPage { items: readonly InvestmentProductState[]; total: number; }
 
 export interface ProductCommand { idempotencyKey: string; requestHash: string; operation: string; }
 
@@ -27,6 +31,10 @@ export class ManageInvestmentProduct {
     const state = await this.repository.findById(productId);
     if (!state) throw new Error(`Investment product not found: ${productId}`);
     return state;
+  }
+
+  async list(limit?: number, offset?: number): Promise<ProductListPage> {
+    return this.repository.list(normalizePage(limit, offset));
   }
 
   async transition(productId: string, action: 'VALIDATE' | 'PUBLISH' | 'SUSPEND' | 'RESUME' | 'CLOSE', actorId: string, justification: string, idempotencyKey: string) {
@@ -50,6 +58,14 @@ export class ManageInvestmentProduct {
     const state = product.snapshot();
     return this.repository.saveTransition(state, transition, command);
   }
+}
+
+function normalizePage(limit: number | undefined, offset: number | undefined): ProductListQuery {
+  const normalizedLimit = limit ?? 50;
+  const normalizedOffset = offset ?? 0;
+  if (!Number.isInteger(normalizedLimit) || normalizedLimit < 1 || normalizedLimit > 100) throw new RangeError('limit must be an integer between 1 and 100');
+  if (!Number.isInteger(normalizedOffset) || normalizedOffset < 0) throw new RangeError('offset must be a non-negative integer');
+  return { limit: normalizedLimit, offset: normalizedOffset };
 }
 
 function commandFor(idempotencyKey: string, operation: string, actorId: string, values: string[]): ProductCommand {

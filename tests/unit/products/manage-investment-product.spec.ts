@@ -12,6 +12,7 @@ class MemoryProducts implements InvestmentProductRepository {
   }
   async create(state: InvestmentProductState, _actor: string, command: ProductCommand): Promise<InvestmentProductState> { this.states.set(state.productId, { ...state }); this.commands.set(command.idempotencyKey, { hash: command.requestHash, state: { ...state } }); return state; }
   async findById(id: string): Promise<InvestmentProductState | undefined> { return this.states.get(id); }
+  async list({ limit, offset }: { limit: number; offset: number }) { const items = [...this.states.values()].slice(offset, offset + limit); return { items, total: this.states.size }; }
   async saveTransition(state: InvestmentProductState, transition: ProductTransition, command: ProductCommand): Promise<InvestmentProductState> {
     this.states.set(state.productId, { ...state }); this.transitions.push({ ...transition }); this.commands.set(command.idempotencyKey, { hash: command.requestHash, state: { ...state } });
     return state;

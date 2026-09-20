@@ -919,6 +919,21 @@
       }
     },
     "/investment-pools": {
+      "get": {
+        "operationId": "listInvestmentPools",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "minimum": 0 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Catalogue paginé des pools d'investissement",
+            "content": { "application/json": { "schema": { "type": "object", "required": ["items", "total"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/InvestmentPool" } }, "total": { "type": "integer", "minimum": 0 } } } } }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      },
       "post": {
         "operationId": "createInvestmentPool",
         "parameters": [
@@ -1129,6 +1144,21 @@
       }
     },
     "/customers": {
+      "get": {
+        "operationId": "listCustomerProfiles",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "minimum": 0 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Catalogue paginé de profils clients tokenisés",
+            "content": { "application/json": { "schema": { "type": "object", "required": ["items", "total"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/CustomerProfile" } }, "total": { "type": "integer", "minimum": 0 } } } } }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      },
       "post": {
         "operationId": "createCustomerProfile",
         "parameters": [
@@ -1512,6 +1542,21 @@
       }
     },
     "/products": {
+      "get": {
+        "operationId": "listInvestmentProducts",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "minimum": 0 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Catalogue paginé des produits d'investissement",
+            "content": { "application/json": { "schema": { "type": "object", "required": ["items", "total"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/InvestmentProduct" } }, "total": { "type": "integer", "minimum": 0 } } } } }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      },
       "post": {
         "operationId": "createInvestmentProduct",
         "parameters": [

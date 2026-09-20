@@ -1,4 +1,4 @@
-import { BadRequestException, Body, ConflictException, Controller, Get, Headers, Inject, NotFoundException, Param, Post } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Get, Headers, Inject, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { ManageInvestmentProduct } from '../../../../src/modules/products/application/manage-investment-product.js';
 import { ManageProductTerms } from '../../../../src/modules/products/application/manage-product-terms.js';
 import { ManageProductReferences } from '../../../../src/modules/products/application/manage-product-references.js';
@@ -14,6 +14,12 @@ export class ProductsController {
     @Inject(MANAGE_PRODUCT_TERMS) private readonly terms: ManageProductTerms,
     @Inject(MANAGE_PRODUCT_REFERENCES) private readonly references: ManageProductReferences,
   ) {}
+
+  @Get()
+  @RequireAuthorization({ operationType: 'LIST_INVESTMENT_PRODUCTS', allowedRoles: ['FINANCE_ANALYST', 'FINANCE_CONTROLLER', 'RELATIONSHIP_MANAGER', 'RISK_ANALYST', 'SHARIA_AUDITOR', 'SYSTEM_ADMIN'], requiredDelegationLevel: 1 })
+  list(@Query('limit') limit?: string, @Query('offset') offset?: string) {
+    return this.execute(() => this.products.list(parsePagination(limit, 'limit'), parsePagination(offset, 'offset')));
+  }
 
   @Post('compliance-references')
   @RequireAuthorization({ operationType: 'CREATE_COMPLIANCE_REFERENCE', allowedRoles: ['SHARIA_AUDITOR', 'SYSTEM_ADMIN'], requiredDelegationLevel: 2, sensitive: true })
@@ -81,4 +87,10 @@ export class ProductsController {
       throw error;
     }
   }
+}
+
+function parsePagination(value: string | undefined, field: 'limit' | 'offset'): number | undefined {
+  if (value === undefined) return undefined;
+  if (!/^\d+$/.test(value)) throw new BadRequestException(`${field} must be a non-negative integer`);
+  return Number(value);
 }
