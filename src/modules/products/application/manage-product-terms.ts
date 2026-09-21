@@ -6,6 +6,7 @@ export interface ProductTermsDraftInput {
   investorNisba: string; bankNisba: string; indicativeTargetRate?: string;
 }
 export interface ProductTermsRepository {
+  listByProduct(productId: string): Promise<ProductTermsState[]>;
   findIdempotent(idempotencyKey: string, requestHash: string): Promise<ProductTermsState | undefined>;
   createDraft(input: ProductTermsDraftInput, actorId: string, command: ProductTermsCommand): Promise<ProductTermsState>;
   findById(termsVersionId: string): Promise<ProductTermsState | undefined>;
@@ -15,6 +16,11 @@ export interface ProductTermsCommand { idempotencyKey: string; requestHash: stri
 
 export class ManageProductTerms {
   constructor(private readonly repository: ProductTermsRepository) {}
+
+  async list(productId: string) {
+    assertUuid(productId, 'Product');
+    return { items: await this.repository.listByProduct(productId) };
+  }
 
   simulate(input: ProductTermsDraftInput) {
     assertUuid(input.productId, 'Product');

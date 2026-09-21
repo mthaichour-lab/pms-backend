@@ -26,10 +26,11 @@ import { RevenueModule } from '../revenue/revenue.module.js';
 import { ExceptionsModule } from '../exceptions/exceptions.module.js';
 import { DocumentsModule } from '../documents/documents.module.js';
 import { AuditModule } from '../audit/audit.module.js';
+import { UserAdministrationModule } from '../user-administration/user-administration.module.js';
 
 @Module({
   imports: [
-    DatabaseModule, ReferenceDataModule, InvestmentAccountsModule,
+    DatabaseModule, ReferenceDataModule, InvestmentAccountsModule, UserAdministrationModule,
     CalculationsModule, WorkflowApprovalModule, AccountingModule, ComplianceModule, RiskAlmModule,
     ReportingModule, ProductsModule, TokenizationModule, CbsIngestionModule, CustomersModule, PoolingModule, RevenueModule, ExceptionsModule, DocumentsModule, AuditModule,
   ],

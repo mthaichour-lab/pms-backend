@@ -3,6 +3,7 @@ import { ManageProductTerms, type ProductTermsDraftInput, type ProductTermsRepos
 import type { ProductTermsState } from '../../../src/modules/products/domain/product-terms-version.js';
 
 class MemoryTerms implements ProductTermsRepository {
+  async listByProduct(_productId: string): Promise<ProductTermsState[]> { return []; }
   state?: ProductTermsState; published = false; commands = new Map<string, { hash: string; state: ProductTermsState }>();
   async findIdempotent(key: string, hash: string) { const command = this.commands.get(key); if (!command) return undefined; if (command.hash !== hash) throw new Error('different product terms command'); return command.state; }
   async createDraft(input: ProductTermsDraftInput, actorId: string, command: { idempotencyKey: string; requestHash: string }): Promise<ProductTermsState> {

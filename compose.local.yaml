@@ -72,6 +72,27 @@ services:
     restart: "no"
     networks: [pms]
 
+  keycloak-user-admin-bootstrap:
+    image: node:24-alpine
+    command: ["node", "/bootstrap/bootstrap-user-administration.mjs"]
+    volumes:
+      - ./deploy/keycloak/bootstrap-user-administration.mjs:/bootstrap/bootstrap-user-administration.mjs:ro
+    environment:
+      ADMIN_USER: ${KEYCLOAK_ADMIN:-admin}
+      ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      DEV_USER: ${KEYCLOAK_DEV_USER:-developer}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:-}
+      DEV_EMAIL: ${KEYCLOAK_DEV_EMAIL:-developer@pms.local}
+      DEV_DELEGATION_LEVEL: ${KEYCLOAK_DEV_DELEGATION_LEVEL:-5}
+      DEV_MAXIMUM_AMOUNT: ${KEYCLOAK_DEV_MAXIMUM_AMOUNT:-1000000000}
+      DEV_POOL_IDS: ${KEYCLOAK_DEV_POOL_IDS:-GLOBAL_POOL,POOL_DZD}
+      DEV_BRANCH_IDS: ${KEYCLOAK_DEV_BRANCH_IDS:-001}
+      DEV_LEGAL_ENTITY_IDS: ${KEYCLOAK_DEV_LEGAL_ENTITY_IDS:-BANK}
+    depends_on:
+      keycloak-bootstrap: { condition: service_completed_successfully }
+    restart: "no"
+    networks: [pms]
+
   db-migrate:
     environment: &local-runtime
       DATABASE_URL: postgresql://${POSTGRES_USER:-pms_app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-pms}
@@ -88,13 +109,19 @@ services:
       db-migrate: { condition: service_completed_successfully }
 
   api:
-    environment: *local-runtime
+    environment:
+      <<: *local-runtime
+      KEYCLOAK_ADMIN_URL: http://keycloak:8080
+      KEYCLOAK_ADMIN_REALM: pms-dev
+      KEYCLOAK_ADMIN_CLIENT_ID: pms-user-admin
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:-}
     depends_on:
       postgres: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
       keycloak-bootstrap: { condition: service_completed_successfully }
       db-migrate: { condition: service_completed_successfully }
       db-seed: { condition: service_completed_successfully }
+      keycloak-user-admin-bootstrap: { condition: service_completed_successfully }
 
   calculation-worker:
     environment: *local-runtime

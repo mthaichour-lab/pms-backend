@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { InvestmentAccountsController } from '../../../apps/api/src/investment-accounts/investment-accounts.controller.js';
 import { GetInvestmentAccountSnapshot } from '../../../src/modules/investment-accounts/application/get-investment-account-snapshot.js';
 import { ManageInvestmentSubscription } from '../../../src/modules/investment-accounts/application/manage-investment-subscription.js';
+import { QueryInvestmentSubscriptions } from '../../../src/modules/investment-accounts/application/query-investment-subscriptions.js';
 
 const accountId = '17146c36-a0cb-4e0a-b095-60b67c945eb9';
 
@@ -18,7 +19,16 @@ describe('InvestmentAccountsController', () => {
     find: async () => undefined,
     create: async (state) => ({ ...state }),
     transition: async () => { throw new Error('not used'); },
-  }, { assertProfitRightsOperationAllowed: async () => undefined }));
+  }, { assertProfitRightsOperationAllowed: async () => undefined }), new QueryInvestmentSubscriptions({
+    listWithBalances: async () => ({ items: [], total: 0 }), findWithBalance: async () => undefined,
+  }));
+
+  it('returns stored subscriptions and rejects invalid pagination or absent subscriptions', async () => {
+    await expect(controller.listSubscriptions()).resolves.toEqual({ items: [], total: 0 });
+    await expect(controller.listSubscriptions('101')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.getSubscription(accountId)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(controller.getSubscription('invalid')).rejects.toBeInstanceOf(BadRequestException);
+  });
 
   it('returns an account and its applicable position', async () => {
     await expect(controller.getAccount(accountId, '2026-08-28')).resolves.toMatchObject({

@@ -6,6 +6,8 @@ import { ManageInvestmentSubscription, type SubscriptionAction } from '../../../
 import type { InvestmentSubscriptionState } from '../../../../src/modules/investment-accounts/domain/investment-subscription.js';
 import { AuthenticatedUser, type AuthenticatedUserClaims } from '../auth/authenticated-user.js';
 import { RequireAuthorization } from '../authorization/authorization.decorator.js';
+import { QueryInvestmentSubscriptions } from '../../../../src/modules/investment-accounts/application/query-investment-subscriptions.js';
+import { QUERY_INVESTMENT_SUBSCRIPTIONS } from './investment-accounts.tokens.js';
 
 @Controller('investment-accounts')
 export class InvestmentAccountsController {
@@ -13,7 +15,18 @@ export class InvestmentAccountsController {
     @Inject(GET_INVESTMENT_ACCOUNT_SNAPSHOT)
     private readonly getSnapshot: GetInvestmentAccountSnapshot,
     @Inject(MANAGE_INVESTMENT_SUBSCRIPTION) private readonly subscriptions: ManageInvestmentSubscription,
+    @Inject(QUERY_INVESTMENT_SUBSCRIPTIONS) private readonly querySubscriptions: QueryInvestmentSubscriptions,
   ) {}
+
+  @Get('subscriptions')
+  @RequireAuthorization({operationType:'LIST_INVESTMENT_SUBSCRIPTIONS',allowedRoles:['RELATIONSHIP_MANAGER','FINANCE_CONTROLLER','SYSTEM_ADMIN'],requiredDelegationLevel:1,sensitive:true})
+  listSubscriptions(@Query('limit') limit?: string, @Query('offset') offset?: string) {
+    return this.subscriptionRun(() => this.querySubscriptions.list(limit === undefined ? 50 : Number(limit), offset === undefined ? 0 : Number(offset)));
+  }
+
+  @Get('subscriptions/:accountId')
+  @RequireAuthorization({operationType:'READ_INVESTMENT_SUBSCRIPTION',allowedRoles:['RELATIONSHIP_MANAGER','FINANCE_CONTROLLER','SYSTEM_ADMIN'],requiredDelegationLevel:1,sensitive:true})
+  getSubscription(@Param('accountId') accountId: string) { return this.subscriptionRun(() => this.querySubscriptions.get(accountId)); }
 
   @Post('subscriptions')
   @RequireAuthorization({operationType:'CREATE_INVESTMENT_SUBSCRIPTION',allowedRoles:['RELATIONSHIP_MANAGER','SYSTEM_ADMIN'],requiredDelegationLevel:2,sensitive:true})

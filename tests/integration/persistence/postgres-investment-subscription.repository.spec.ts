@@ -24,6 +24,26 @@ const command = {
 };
 
 describe('PostgresInvestmentSubscriptionRepository', () => {
+  it('preserves decimal strings and explicit consent when loading a stored subscription', async () => {
+    const query = vi.fn(async () => ({ rows: [{ ...row(pending), balance: '9007199254740993.000000000001', total_deposits: '9007199254740994.000000000002', total_withdrawals: '1.000000000001' }] }));
+    const repository = new PostgresInvestmentSubscriptionRepository({ query } as never);
+    await expect(repository.findWithBalance(accountId)).resolves.toMatchObject({ accountId, balance: '9007199254740993.000000000001', termsAccepted: true });
+    expect(query.mock.calls[0]).toEqual([expect.stringContaining("(details->>'amount')::numeric"), [accountId]]);
+  });
+
+  it('rejects an overdraft under the account lock without writing events', async () => {
+    const query = vi.fn(async (sql: string, _values?: unknown[]) => {
+      if (sql.includes('FOR UPDATE')) return { rows: [row({ ...pending, status: 'ACTIVE' })] };
+      if (sql.includes('AS sufficient')) return { rows: [{ sufficient: false }] };
+      return { rows: [], rowCount: 1 };
+    });
+    const repository = new PostgresInvestmentSubscriptionRepository({ connect: async () => ({ query, release: vi.fn() }), query } as never);
+    await expect(repository.transition(accountId, command, async state => ({ state, events: [{ type: 'WITHDRAWAL', businessDate: '2026-09-21', actorId: 'manager', details: { amount: '10.000000000001' } }] }))).rejects.toThrow('Insufficient subscription balance');
+    const statements = query.mock.calls.map(([sql]) => sql);
+    expect(statements.findIndex(sql => sql.includes('AS sufficient'))).toBeGreaterThan(statements.findIndex(sql => sql.includes('FOR UPDATE')));
+    expect(statements.some(sql => sql.includes('INSERT INTO investment.subscription_event'))).toBe(false);
+    expect(statements.at(-1)).toBe('ROLLBACK');
+  });
   it('locks the current account and writes event, audit outbox and command outcome before commit', async () => {
     const query = vi.fn(async (sql: string, _values?: unknown[]) => {
       if (sql.includes('FROM investment.subscription_command')) return { rows: [] };

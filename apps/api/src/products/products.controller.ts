@@ -42,6 +42,10 @@ export class ProductsController {
     return this.execute(() => this.references.arbitrate({ productId, selectedReferenceId: body.selectedReferenceId ?? '', rejectedReferenceId: body.rejectedReferenceId ?? '', rationale: body.rationale ?? '', actorId: user.sub }));
   }
 
+  @Get(':productId/terms')
+  @RequireAuthorization({ operationType: 'LIST_PRODUCT_TERMS', allowedRoles: ['FINANCE_ANALYST', 'FINANCE_CONTROLLER', 'RELATIONSHIP_MANAGER', 'RISK_ANALYST', 'SHARIA_AUDITOR', 'SYSTEM_ADMIN'], requiredDelegationLevel: 1 })
+  listTerms(@Param('productId') productId: string) { return this.execute(() => this.terms.list(productId)); }
+
   @Post(':productId/terms/simulate')
   @RequireAuthorization({ operationType: 'SIMULATE_PRODUCT_TERMS', allowedRoles: ['FINANCE_ANALYST', 'FINANCE_CONTROLLER', 'SYSTEM_ADMIN'], requiredDelegationLevel: 1 })
   simulateTerms(@Param('productId') productId: string, @Body() body: { effectiveFrom?: string; effectiveTo?: string; investorNisba?: string; bankNisba?: string; indicativeTargetRate?: string }) {

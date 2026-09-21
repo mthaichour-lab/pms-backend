@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
+import type { InvestmentSubscriptionQueryRepository, SubscriptionBalance } from '../../modules/investment-accounts/application/query-investment-subscriptions.js';
 
 import type {
   InvestmentSubscriptionRepository,
@@ -10,8 +11,21 @@ import type {
   SubscriptionEvent,
 } from '../../modules/investment-accounts/domain/investment-subscription.js';
 
-export class PostgresInvestmentSubscriptionRepository implements InvestmentSubscriptionRepository {
+export class PostgresInvestmentSubscriptionRepository implements InvestmentSubscriptionRepository, InvestmentSubscriptionQueryRepository {
   constructor(private readonly pool: Pick<Pool, 'connect' | 'query'>) {}
+
+  async listWithBalances(limit: number, offset: number) {
+    const [result, count] = await Promise.all([
+      this.pool.query<SubscriptionBalanceRow>(`${selectSubscriptionWithBalance} ORDER BY account_id LIMIT $1 OFFSET $2`, [limit, offset]),
+      this.pool.query<{ total: string }>('SELECT count(*)::text AS total FROM investment.subscription_account'),
+    ]);
+    return { items: result.rows.map(mapSubscriptionBalance), total: Number(count.rows[0]?.total ?? '0') };
+  }
+
+  async findWithBalance(accountId: string): Promise<SubscriptionBalance | undefined> {
+    const result = await this.pool.query<SubscriptionBalanceRow>(`${selectSubscriptionWithBalance} WHERE account_id=$1::uuid`, [accountId]);
+    return result.rows[0] ? mapSubscriptionBalance(result.rows[0]) : undefined;
+  }
 
   async find(accountId: string): Promise<InvestmentSubscriptionState | undefined> {
     const result = await this.pool.query<SubscriptionRow>(`${selectSubscription} WHERE account_id=$1::uuid`, [accountId]);
@@ -61,6 +75,18 @@ export class PostgresInvestmentSubscriptionRepository implements InvestmentSubsc
 
       const mutation = await mutate(mapSubscription(current.rows[0]));
       if (mutation.events.length !== 1) throw new Error('A subscription command must emit exactly one domain event');
+      const withdrawal = mutation.events[0];
+      if (withdrawal?.type === 'WITHDRAWAL') {
+        // The account row remains locked until commit. Concurrent withdrawals therefore
+        // recompute against the events committed by the previous account command.
+        const available = await client.query<{ sufficient: boolean }>(
+          `SELECT COALESCE(SUM(CASE event_type WHEN 'DEPOSIT' THEN (details->>'amount')::numeric
+             WHEN 'WITHDRAWAL' THEN -(details->>'amount')::numeric ELSE 0 END),0) >= $2::numeric AS sufficient
+           FROM investment.subscription_event WHERE account_id=$1::uuid`,
+          [accountId, withdrawal.details.amount],
+        );
+        if (available.rows[0]?.sufficient !== true) throw new Error('Insufficient subscription balance for withdrawal');
+      }
       await client.query(
         `UPDATE investment.subscription_account SET
            status=$2, opened_on=$3::date, maturity_date=$4::date, closed_on=$5::date,
@@ -104,6 +130,22 @@ const subscriptionColumns = `account_id::text, customer_id::text, product_id::te
   currency_code, status, opened_on::text, maturity_date::text, closed_on::text,
   accepted_at::text, accepted_by, non_guarantee_accepted, profit_sharing_method_accepted`;
 const selectSubscription = `SELECT ${subscriptionColumns} FROM investment.subscription_account`;
+const selectSubscriptionWithBalance = `SELECT ${subscriptionColumns},
+  (ledger.deposits - ledger.withdrawals)::text AS balance,
+  ledger.deposits::text AS total_deposits, ledger.withdrawals::text AS total_withdrawals
+  FROM investment.subscription_account subscription
+  CROSS JOIN LATERAL (
+    SELECT COALESCE(SUM((details->>'amount')::numeric) FILTER (WHERE event_type='DEPOSIT'),0) AS deposits,
+           COALESCE(SUM((details->>'amount')::numeric) FILTER (WHERE event_type='WITHDRAWAL'),0) AS withdrawals
+    FROM investment.subscription_event event WHERE event.account_id=subscription.account_id
+      AND event_type IN ('DEPOSIT','WITHDRAWAL')
+  ) ledger`;
+
+interface SubscriptionBalanceRow extends SubscriptionRow { balance: string; total_deposits: string; total_withdrawals: string }
+function mapSubscriptionBalance(row: SubscriptionBalanceRow): SubscriptionBalance {
+  return { ...mapSubscription(row), balance: row.balance, totalDeposits: row.total_deposits, totalWithdrawals: row.total_withdrawals,
+    termsAccepted: Boolean(row.accepted_at && row.non_guarantee_accepted && row.profit_sharing_method_accepted) };
+}
 
 interface SubscriptionRow {
   account_id: string;

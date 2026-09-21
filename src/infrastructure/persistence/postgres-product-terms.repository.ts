@@ -5,6 +5,11 @@ import type { ProductTermsState } from '../../modules/products/domain/product-te
 export class PostgresProductTermsRepository implements ProductTermsRepository {
   constructor(private readonly pool: Pool) {}
 
+  async listByProduct(productId: string): Promise<ProductTermsState[]> {
+    const result = await this.pool.query<TermsRow>(`${selectTerms} WHERE product_id = $1::uuid ORDER BY version DESC`, [productId]);
+    return result.rows.map(mapTerms);
+  }
+
   async findIdempotent(idempotencyKey: string, requestHash: string): Promise<ProductTermsState | undefined> {
     const result = await this.pool.query<TermsRow & { request_hash: string }>(
       `SELECT ${termsColumns}, c.request_hash FROM product.terms_command_idempotency c

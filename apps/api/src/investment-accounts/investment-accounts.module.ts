@@ -10,10 +10,15 @@ import { PostgresInvestmentSubscriptionRepository } from '../../../../src/infras
 import { PostgresCustomerProfileRepository } from '../../../../src/infrastructure/persistence/postgres-customer-profile.repository.js';
 import { ManageInvestmentSubscription } from '../../../../src/modules/investment-accounts/application/manage-investment-subscription.js';
 import { ManageCustomerProfile } from '../../../../src/modules/customers/application/manage-customer-profile.js';
+import { QueryInvestmentSubscriptions } from '../../../../src/modules/investment-accounts/application/query-investment-subscriptions.js';
+import { QUERY_INVESTMENT_SUBSCRIPTIONS } from './investment-accounts.tokens.js';
 
 @Module({
   controllers: [InvestmentAccountsController],
   providers: [{
+    provide: QUERY_INVESTMENT_SUBSCRIPTIONS, inject: [PostgresDatabaseService],
+    useFactory: (database: PostgresDatabaseService) => new QueryInvestmentSubscriptions(new PostgresInvestmentSubscriptionRepository(database.pool)),
+  }, {
     provide: GET_INVESTMENT_ACCOUNT_SNAPSHOT,
     inject: [PostgresDatabaseService],
     useFactory: (database: PostgresDatabaseService) => new GetInvestmentAccountSnapshot(
