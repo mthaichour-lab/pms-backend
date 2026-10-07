@@ -68,7 +68,7 @@ export class AuthorizationGuard implements CanActivate {
 
     const body = request.body ?? {};
     const resource: AuthorizationResource = {
-      poolId: request.params?.['poolId'],
+      poolId: request.params?.['poolId'] ?? asOptionalString(body['poolId']),
       legalEntityId: asOptionalString(body['legalEntityId']),
       branchId: asOptionalString(body['branchId']),
       workflowStatus: asOptionalString(body['workflowStatus']),

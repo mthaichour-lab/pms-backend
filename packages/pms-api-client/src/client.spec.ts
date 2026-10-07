@@ -3,6 +3,39 @@ import { describe, expect, it, vi } from 'vitest';
 import { createPmsApiClient, PmsApiProblem } from './client.js';
 
 describe('pms api client', () => {
+  it('lists and creates dated currency references through the typed client', async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [], total: 0 }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'EUR', name: 'Euro', fractionDigits: 2, validFrom: '2026-01-01' }), { status: 201 }));
+    const client = createPmsApiClient({ baseUrl: 'https://backend.internal', accessToken: () => 'server-token', fetch: fetchMock });
+
+    await client.listEffectiveCurrencies({ businessDate: '2026-01-01', limit: 25, offset: 0, correlationId: 'currency-list-request' });
+    await client.createCurrencyReference({ correlationId: 'currency-create-request', idempotencyKey: 'currency-create-request-001', command: { code: 'EUR', name: 'Euro', fractionDigits: 2, validFrom: '2026-01-01' } });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://backend.internal/api/reference-data/currencies?businessDate=2026-01-01&limit=25&offset=0');
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('https://backend.internal/api/reference-data/currencies');
+    expect(new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get('idempotency-key')).toBe('currency-create-request-001');
+  });
+
+  it('lists allocatable assets with bounded pagination and request tracing', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ items: [], total: 0 }), { status: 200 }));
+    const client = createPmsApiClient({ baseUrl: 'https://backend.internal', accessToken: () => 'server-token', fetch: fetchMock });
+
+    await client.listAssetPositions({ limit: 50, offset: 100, correlationId: 'asset-catalog-request', traceparent: '00-trace-span-01' });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://backend.internal/api/investment-pools/assets?limit=50&offset=100',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          authorization: 'Bearer server-token',
+          'x-correlation-id': 'asset-catalog-request',
+          traceparent: '00-trace-span-01',
+        }),
+      }),
+    );
+  });
+
   it('reads the verified audit trail with an optional limit', async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ events: [], integrity: 'HASH_CHAIN', chainValid: true, verifiedCount: 0 }), { status: 200 }),

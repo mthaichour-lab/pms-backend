@@ -14,6 +14,7 @@ export const operationIds = [
   "listRecognizedIncome",
   "importRecognizedIncome",
   "adjustRecognizedIncome",
+  "listAssetPositions",
   "listAssetAnomalies",
   "reportAssetAnomaly",
   "resolveAssetAnomaly",
@@ -52,6 +53,8 @@ export const operationIds = [
   "associateProductReference",
   "arbitrateProductCompliance",
   "getApiStatus",
+  "listEffectiveCurrencies",
+  "createCurrencyReference",
   "getEffectiveCurrency",
   "getEffectiveRegulatoryRule",
   "getInvestmentAccountSnapshot",
@@ -215,6 +218,14 @@ export type PoolFundingSource = {
   readonly type: string;
   readonly amount: string;
   readonly mandateAssetCodes: readonly string[];
+};
+
+export type AssetPosition = {
+  readonly assetId: string;
+  readonly assetCode: string;
+  readonly currency: string;
+  readonly outstandingAmount: string;
+  readonly financingType?: string;
 };
 
 export type CreateInvestmentPool = {
@@ -458,6 +469,11 @@ export type CurrencyDefinition = {
   readonly fractionDigits: number;
   readonly validFrom: string;
   readonly validUntil?: string;
+};
+
+export type CurrencyReferencePage = {
+  readonly items: readonly CurrencyDefinition[];
+  readonly total: number;
 };
 
 export type InvestmentPosition = {

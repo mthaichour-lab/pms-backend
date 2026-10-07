@@ -60,16 +60,16 @@ async function insertAuditIntent(
        event_id, aggregate_type, aggregate_id, event_type, schema_version,
        correlation_id, payload, occurred_at
      ) VALUES (
-       gen_random_uuid(), $1, $2, 'pms.audit.workflow-action-recorded.v1', 1,
+       gen_random_uuid(), $1::text, $2::text, 'pms.audit.workflow-action-recorded.v1', 1,
        $3::uuid, jsonb_strip_nulls(jsonb_build_object(
-         'action', $4,
-         'actorId', $5,
-         'resourceType', $1,
-         'resourceId', $2,
-         'businessDate', $8,
-         'justification', $6,
-         'resultState', $7,
-         'sessionId', $9
+         'action', $4::text,
+         'actorId', $5::text,
+         'resourceType', $1::text,
+         'resourceId', $2::text,
+         'businessDate', $8::text,
+         'justification', $6::text,
+         'resultState', $7::text,
+         'sessionId', $9::text
        )), clock_timestamp()
      )`,
     [resourceType, command.resourceId, command.correlationId, command.action,

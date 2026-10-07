@@ -8,6 +8,7 @@ import type {
   ApprovedPoolOperation,
   ApprovePoolOperationCommand,
   CurrencyDefinition,
+  CurrencyReferencePage,
   InvestmentAccountSnapshot,
   CalculationRun,
   WorkflowApprovalCommand,
@@ -55,6 +56,7 @@ import type {
   DetokenizedValue,
   CbsDataQualityBatch,
   AssetAllocation,
+  AssetPosition,
   CreateInvestmentPool,
   InvestmentPool,
   PoolFundingSource,
@@ -190,8 +192,22 @@ export function createPmsApiClient(options: PmsApiClientOptions) {
     async createInvestmentProduct(input: CommandInput<CreateInvestmentProduct>): Promise<InvestmentProduct> {
       return genericCommandRequest<CreateInvestmentProduct, InvestmentProduct>('/products', input);
     },
+    async listInvestmentProducts(input: { limit?: number; offset?: number; correlationId: string; traceparent?: string }): Promise<{ items: readonly InvestmentProduct[]; total: number }> {
+      const query = new URLSearchParams();
+      if (input.limit !== undefined) query.set('limit', String(input.limit));
+      if (input.offset !== undefined) query.set('offset', String(input.offset));
+      const suffix = query.size ? `?${query}` : '';
+      return request<{ items: readonly InvestmentProduct[]; total: number }>(`/products${suffix}`, { method: 'GET', correlationId: input.correlationId, traceparent: input.traceparent });
+    },
     async createCustomerProfile(input: CommandInput<CustomerProfile>): Promise<CustomerProfile> {
       return genericCommandRequest<CustomerProfile, CustomerProfile>('/customers', input);
+    },
+    async listCustomerProfiles(input: { limit?: number; offset?: number; correlationId: string; traceparent?: string }): Promise<{ items: readonly CustomerProfile[]; total: number }> {
+      const query = new URLSearchParams();
+      if (input.limit !== undefined) query.set('limit', String(input.limit));
+      if (input.offset !== undefined) query.set('offset', String(input.offset));
+      const suffix = query.size ? `?${query}` : '';
+      return request<{ items: readonly CustomerProfile[]; total: number }>(`/customers${suffix}`, { method: 'GET', correlationId: input.correlationId, traceparent: input.traceparent });
     },
     async identifyPurification(input: CommandInput<PurificationCase>): Promise<PurificationCase> {
       return genericCommandRequest<PurificationCase, PurificationCase>('/purifications', input);
@@ -234,6 +250,20 @@ export function createPmsApiClient(options: PmsApiClientOptions) {
     },
     async createInvestmentPool(input: CommandInput<CreateInvestmentPool>): Promise<InvestmentPool> {
       return genericCommandRequest<CreateInvestmentPool, InvestmentPool>('/investment-pools', input);
+    },
+    async listInvestmentPools(input: { limit?: number; offset?: number; correlationId: string; traceparent?: string }): Promise<{ items: readonly InvestmentPool[]; total: number }> {
+      const query = new URLSearchParams();
+      if (input.limit !== undefined) query.set('limit', String(input.limit));
+      if (input.offset !== undefined) query.set('offset', String(input.offset));
+      const suffix = query.size ? `?${query}` : '';
+      return request<{ items: readonly InvestmentPool[]; total: number }>(`/investment-pools${suffix}`, { method: 'GET', correlationId: input.correlationId, traceparent: input.traceparent });
+    },
+    async listAssetPositions(input: { limit?: number; offset?: number; correlationId: string; traceparent?: string }): Promise<{ items: readonly AssetPosition[]; total: number }> {
+      const query = new URLSearchParams();
+      if (input.limit !== undefined) query.set('limit', String(input.limit));
+      if (input.offset !== undefined) query.set('offset', String(input.offset));
+      const suffix = query.size ? `?${query}` : '';
+      return request<{ items: readonly AssetPosition[]; total: number }>(`/investment-pools/assets${suffix}`, { method: 'GET', correlationId: input.correlationId, traceparent: input.traceparent });
     },
     async getInvestmentPool(input: { poolId: string; correlationId: string; traceparent?: string }): Promise<InvestmentPool> {
       return request<InvestmentPool>(`/investment-pools/${encodeURIComponent(input.poolId)}`, { method: 'GET', correlationId: input.correlationId, traceparent: input.traceparent });
@@ -311,6 +341,15 @@ export function createPmsApiClient(options: PmsApiClientOptions) {
         `/reference-data/currencies/${encodeURIComponent(input.code)}?${query}`,
         { method: 'GET', correlationId: input.correlationId, traceparent: input.traceparent },
       );
+    },
+    async listEffectiveCurrencies(input: { businessDate: string; limit?: number; offset?: number; correlationId: string; traceparent?: string }): Promise<CurrencyReferencePage> {
+      const query = new URLSearchParams({ businessDate: input.businessDate });
+      if (input.limit !== undefined) query.set('limit', String(input.limit));
+      if (input.offset !== undefined) query.set('offset', String(input.offset));
+      return request<CurrencyReferencePage>(`/reference-data/currencies?${query}`, { method: 'GET', correlationId: input.correlationId, traceparent: input.traceparent });
+    },
+    async createCurrencyReference(input: CommandInput<CurrencyDefinition>): Promise<CurrencyDefinition> {
+      return genericCommandRequest<CurrencyDefinition, CurrencyDefinition>('/reference-data/currencies', input);
     },
     async getEffectiveRegulatoryRule(input: { ruleCode: string; businessDate: string; correlationId: string; traceparent?: string }): Promise<RegulatoryRule> {
       const query = new URLSearchParams({ businessDate: input.businessDate });

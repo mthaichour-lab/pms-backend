@@ -99,6 +99,7 @@ export class PostgresInvestmentSubscriptionRepository implements InvestmentSubsc
           mutation.state.acceptance?.nonGuaranteeAccepted ?? false,
           mutation.state.acceptance?.profitSharingMethodAccepted ?? false],
       );
+      await synchronizeOperationalAccount(client, mutation.state, mutation.events[0]?.type);
       await appendEvents(client, accountId, mutation.events, command.idempotencyKey);
       await appendAuditIntent(client, mutation.state, mutation.events, command);
       await insertCommand(client, mutation.state, command);
@@ -122,6 +123,37 @@ export class PostgresInvestmentSubscriptionRepository implements InvestmentSubsc
     } finally {
       client.release();
     }
+  }
+}
+
+/**
+ * A subscription is the contractual record; investment.account is the
+ * operational record used by positions, calculation participants and the
+ * accounting ledger.  The latter must exist as soon as the contract becomes
+ * active, and not only after an eventual CBS position import.
+ */
+async function synchronizeOperationalAccount(
+  client: PoolClient,
+  state: Readonly<InvestmentSubscriptionState>,
+  eventType: SubscriptionEvent['type'] | undefined,
+): Promise<void> {
+  if (eventType !== 'ACTIVATED' || state.status !== 'ACTIVE' || !state.openedOn) return;
+
+  const result = await client.query(
+    `INSERT INTO investment.account(
+       account_id, customer_token, product_code, currency_code, opened_on, status
+     )
+     SELECT $1::uuid, customer.identity_token, product.product_code, $2, $3::date, 'ACTIVE'
+       FROM customer.profile customer
+       JOIN product.investment_product product ON product.product_id = $4::uuid
+      WHERE customer.customer_id = $5::uuid
+     ON CONFLICT (account_id) DO UPDATE
+       SET status = 'ACTIVE', closed_on = NULL, updated_at = clock_timestamp()
+     RETURNING account_id`,
+    [state.accountId, state.currency, state.openedOn, state.productId, state.customerId],
+  );
+  if (result.rowCount !== 1) {
+    throw new Error('Active subscription requires an existing customer and product operational reference');
   }
 }
 
@@ -251,11 +283,11 @@ async function appendAuditIntent(
        event_id, aggregate_type, aggregate_id, event_type, schema_version,
        correlation_id, payload, occurred_at
      ) VALUES(
-       gen_random_uuid(), 'InvestmentSubscription', $1, 'pms.audit.workflow-action-recorded.v1', 1,
+       gen_random_uuid(), 'InvestmentSubscription', $1::text, 'pms.audit.workflow-action-recorded.v1', 1,
        $2::uuid, jsonb_build_object(
-         'resourceType', 'InvestmentSubscription', 'resourceId', $1,
-         'action', $3, 'actorId', $4, 'justification', $5,
-         'resultState', $6, 'businessDate', $7
+         'resourceType', 'InvestmentSubscription', 'resourceId', $1::text,
+         'action', $3::text, 'actorId', $4::text, 'justification', $5::text,
+         'resultState', $6::text, 'businessDate', $7::text
        ), clock_timestamp()
      )`,
     [state.accountId, command.correlationId, command.operation, command.actorId,

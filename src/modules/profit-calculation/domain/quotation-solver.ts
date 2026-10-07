@@ -2,6 +2,7 @@ import { Decimal } from 'decimal.js';
 export type QuotationVerdict='APPROVABLE'|'ALCO_APPROVAL_REQUIRED'|'NOT_VIABLE';
 export class EmptyQuotationBasisError extends Error{readonly code='EMPTY_BASIS'}
 export class InsufficientQuotationBasisError extends Error{readonly code='INSUFFICIENT_BASIS';constructor(readonly maximumCapacity:string){super('Quotation basis is insufficient')}}
+export class UncertifiedQuotationBasisError extends Error{readonly code='UNCERTIFIED_BASIS';constructor(){super('Quotation requires a certified pool result')}}
 export interface SolveQuotationInput{placementAmount:string;availableBasis:string;projectedGrossRatePercent:string;targetNetRatePercent:string;standardMaxInvestorNisbaPercent:string;maxTanazulAmount:string;availablePerIrrAmount:string;designatedBasis?:boolean}
 export function solveQuotationTarget(input:SolveQuotationInput){
  const amount=positive(input.placementAmount,'placementAmount');const capacity=nonNegative(input.availableBasis,'availableBasis');

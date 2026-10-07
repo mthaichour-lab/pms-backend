@@ -35,6 +35,8 @@ describe('PostgresWorkflowApprovalRepository audit outbox', () => {
 
     const outboxCall = query.mock.calls[outboxIndex]!;
     expect(outboxCall[0]).toContain("'pms.audit.workflow-action-recorded.v1'");
+    expect(outboxCall[0]).toContain("'resourceType', $1::text");
+    expect(outboxCall[0]).toContain("'sessionId', $9::text");
     for (const requiredField of ['resourceType', 'resourceId', 'action', 'actorId', 'justification', 'resultState', 'businessDate']) {
       expect(outboxCall[0], `missing AsyncAPI payload field ${requiredField}`).toContain(`'${requiredField}'`);
     }

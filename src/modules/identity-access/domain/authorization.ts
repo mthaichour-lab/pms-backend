@@ -11,6 +11,7 @@ export function evaluateAuthorization(
 ): AuthorizationDecision {
   const { subject, resource, policy, amount } = request;
   const reasons: AuthorizationDenialReason[] = [];
+  const isSystemAdministrator = subject.roles.includes('SYSTEM_ADMIN');
   const evaluatedAt = timestamp(
     request.evaluatedAt ?? new Date().toISOString(),
   );
@@ -19,15 +20,16 @@ export function evaluateAuthorization(
     reasons.push('ROLE_NOT_ALLOWED');
   }
   if (
+    !isSystemAdministrator &&
     resource.legalEntityId &&
     !subject.legalEntityIds.includes(resource.legalEntityId)
   ) {
     reasons.push('LEGAL_ENTITY_OUT_OF_SCOPE');
   }
-  if (resource.branchId && !subject.branchIds.includes(resource.branchId)) {
+  if (!isSystemAdministrator && resource.branchId && !subject.branchIds.includes(resource.branchId)) {
     reasons.push('BRANCH_OUT_OF_SCOPE');
   }
-  if (resource.poolId && !subject.poolIds.includes(resource.poolId)) {
+  if (!isSystemAdministrator && resource.poolId && !subject.poolIds.includes(resource.poolId)) {
     reasons.push('POOL_OUT_OF_SCOPE');
   }
   if (

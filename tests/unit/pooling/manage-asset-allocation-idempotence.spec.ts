@@ -13,7 +13,7 @@ const command = {
 function service(save = vi.fn()) {
   return new ManageAssetAllocation({
     allocatedPercentage: async () => '0',
-    preconditions: async () => ({ activeAnomalies: [], hasPriorAllocation: false, approvalValid: false }),
+    preconditions: async () => ({ assetExists: true, activeAnomalies: [], hasPriorAllocation: false, approvalValid: false }),
     save,
     history: vi.fn(),
   });

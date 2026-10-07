@@ -71,16 +71,20 @@ describe('PostgresInvestmentSubscriptionRepository', () => {
     expect(statements[1]).toContain('pg_advisory_xact_lock');
     const lockIndex = statements.findIndex((sql) => sql.includes('FOR UPDATE'));
     const updateIndex = statements.findIndex((sql) => sql.startsWith('UPDATE investment.subscription_account'));
+    const operationalAccountIndex = statements.findIndex((sql) => sql.includes('INSERT INTO investment.account'));
     const eventIndex = statements.findIndex((sql) => sql.includes('INSERT INTO investment.subscription_event'));
     const outboxIndex = statements.findIndex((sql) => sql.includes('INSERT INTO integration.outbox_event'));
     const commandIndex = statements.findIndex((sql) => sql.includes('INSERT INTO investment.subscription_command'));
     const commitIndex = statements.indexOf('COMMIT');
     expect(lockIndex).toBeGreaterThan(1);
     expect(updateIndex).toBeGreaterThan(lockIndex);
+    expect(operationalAccountIndex).toBeGreaterThan(updateIndex);
     expect(eventIndex).toBeGreaterThan(updateIndex);
     expect(outboxIndex).toBeGreaterThan(eventIndex);
     expect(commandIndex).toBeGreaterThan(outboxIndex);
     expect(commitIndex).toBeGreaterThan(commandIndex);
+    expect(statements[outboxIndex]).toContain("'resourceId', $1::text");
+    expect(statements[outboxIndex]).toContain("'action', $3::text");
     expect(query.mock.calls[outboxIndex]?.[1]).toEqual([
       accountId, correlationId, command.operation, command.actorId,
       command.justification, 'ACTIVE', '2026-09-14',

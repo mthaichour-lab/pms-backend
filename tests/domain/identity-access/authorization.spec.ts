@@ -44,7 +44,7 @@ describe('evaluateAuthorization', () => {
     });
   });
 
-  it('denies a pool outside scope even for a system administrator', () => {
+  it('allows a system administrator to administer a newly-created pool before scopes are synchronized', () => {
     const decision = evaluateAuthorization({
       ...baseRequest,
       subject: {
@@ -52,6 +52,16 @@ describe('evaluateAuthorization', () => {
         roles: ['SYSTEM_ADMIN'],
         poolIds: ['another-pool'],
       },
+    });
+
+    expect(decision.allowed).toBe(true);
+    expect(decision.reasons).not.toContain('POOL_OUT_OF_SCOPE');
+  });
+
+  it('still denies a regular operator outside their assigned pool', () => {
+    const decision = evaluateAuthorization({
+      ...baseRequest,
+      subject: { ...baseRequest.subject, poolIds: ['another-pool'] },
     });
 
     expect(decision.allowed).toBe(false);

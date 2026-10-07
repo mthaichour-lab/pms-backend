@@ -555,6 +555,23 @@
         }
       }
     },
+    "/investment-pools/assets": {
+      "get": {
+        "operationId": "listAssetPositions",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "minimum": 0 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Catalogue paginé des actifs allouables",
+            "content": { "application/json": { "schema": { "type": "object", "required": ["items", "total"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/AssetPosition" } }, "total": { "type": "integer", "minimum": 0 } } } } }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
     "/investment-pools/assets/{assetId}/anomalies": {
       "get": {
         "operationId": "listAssetAnomalies",
@@ -2018,6 +2035,33 @@
           "default": {
             "$ref": "#/components/responses/Problem"
           }
+        }
+      }
+    },
+    "/reference-data/currencies": {
+      "get": {
+        "operationId": "listEffectiveCurrencies",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "name": "businessDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 } },
+          { "name": "offset", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 0, "default": 0 } }
+        ],
+        "responses": {
+          "200": { "description": "Devises applicables à la date métier", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CurrencyReferencePage" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      },
+      "post": {
+        "operationId": "createCurrencyReference",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CurrencyDefinition" } } } },
+        "responses": {
+          "201": { "description": "Version de devise créée", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CurrencyDefinition" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
         }
       }
     },
@@ -3610,6 +3654,35 @@
         },
         "additionalProperties": false
       },
+      "AssetPosition": {
+        "type": "object",
+        "required": [
+          "assetId",
+          "assetCode",
+          "currency",
+          "outstandingAmount"
+        ],
+        "properties": {
+          "assetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "assetCode": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "outstandingAmount": {
+            "type": "string"
+          },
+          "financingType": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "CreateInvestmentPool": {
         "type": "object",
         "required": [
@@ -4645,6 +4718,15 @@
             "type": "string",
             "format": "date"
           }
+        },
+        "additionalProperties": false
+      },
+      "CurrencyReferencePage": {
+        "type": "object",
+        "required": ["items", "total"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/CurrencyDefinition" } },
+          "total": { "type": "integer", "minimum": 0 }
         },
         "additionalProperties": false
       },

@@ -14,6 +14,19 @@ export interface CalculationRunView {
 
 export interface CalculationRunQueryRepository {
   findById(runId: string): Promise<CalculationRunView | undefined>;
+  list(input: CalculationRunListQuery): Promise<CalculationRunListPage>;
+}
+
+export interface CalculationRunListQuery {
+  limit: number;
+  offset: number;
+  poolId?: string;
+  status?: CalculationRunView['status'];
+}
+
+export interface CalculationRunListPage {
+  items: readonly CalculationRunView[];
+  total: number;
 }
 
 export class GetCalculationRun {
@@ -26,5 +39,26 @@ export class GetCalculationRun {
     const run = await this.repository.findById(runId);
     if (!run) throw new Error(`Calculation run not found: ${runId}`);
     return run;
+  }
+}
+
+export class ListCalculationRuns {
+  constructor(private readonly repository: CalculationRunQueryRepository) {}
+
+  execute(input: CalculationRunListQuery): Promise<CalculationRunListPage> {
+    if (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 100) {
+      throw new RangeError('Calculation list limit must be between 1 and 100');
+    }
+    if (!Number.isInteger(input.offset) || input.offset < 0) {
+      throw new RangeError('Calculation list offset must be a non-negative integer');
+    }
+    if (input.poolId !== undefined && !/^[A-Z0-9_-]{2,32}$/.test(input.poolId)) {
+      throw new TypeError('Invalid calculation pool');
+    }
+    const statuses: readonly CalculationRunView['status'][] = ['DRAFT','CALCULATED','CONTROLLED','APPROVED','POSTED','ARCHIVED','FAILED'];
+    if (input.status !== undefined && !statuses.includes(input.status)) {
+      throw new TypeError('Invalid calculation status');
+    }
+    return this.repository.list(input);
   }
 }

@@ -25,7 +25,10 @@ services:
       - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
     volumes: ["rabbitmq-data:/var/lib/rabbitmq"]
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      # Run the probe as the RabbitMQ account. A root probe can win the
+      # first-start race and create .erlang.cookie as root, preventing the
+      # broker process from reading it afterwards.
+      test: ["CMD", "su-exec", "rabbitmq", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 5s
       timeout: 5s
       retries: 20
