@@ -34,4 +34,27 @@ describe('PostgresAssetAllocationRepository', () => {
     expect(sql).toContain('resource_id=$1::text');
     expect(sql).toContain('idempotency_key=$2::text');
   });
+
+  it('types every outbox payload parameter before PostgreSQL builds JSON', async () => {
+    const query = vi.fn(async (sql: string) => ({
+      rowCount: sql.includes('INSERT INTO pooling.asset_allocation_version') ? 1 : 0,
+      rows: [],
+    }));
+    const release = vi.fn();
+    const repository = new PostgresAssetAllocationRepository({ connect: async () => ({ query, release }) } as never);
+
+    await expect(repository.save({
+      allocationId: '17146c36-a0cb-4e0a-b095-60b67c945eb9',
+      assetId: 'a1d817e4-657f-475f-a96a-7eecb8f93acc',
+      poolId: 'POOL_DZD',
+      percentage: '75',
+      effectiveFrom: '2026-10-07',
+      justification: 'Documented pool allocation',
+    }, 'allocation:e2e-test-0001')).resolves.toBe('CREATED');
+
+    const outboxSql = String(query.mock.calls.find(([sql]) => sql.includes('INSERT INTO integration.outbox_event'))?.[0]);
+    expect(outboxSql).toContain("'allocationId',$1::text");
+    for (const position of [3, 4, 5, 6]) expect(outboxSql).toContain(`$${position}::text`);
+    expect(release).toHaveBeenCalledOnce();
+  });
 });
