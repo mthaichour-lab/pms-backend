@@ -8,3 +8,5 @@ coverage/
 !.env.local.example
 !.env.backup.example
 *.tsbuildinfo
+graphify-out/
+*.tgz
