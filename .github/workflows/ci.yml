@@ -58,7 +58,17 @@ jobs:
           cp .env.local.example .env.local
           cp .env.compose.example .env.compose
           printf '\nPOSTGRES_PASSWORD=%s\nRABBITMQ_PASSWORD=%s\nKEYCLOAK_ADMIN_PASSWORD=%s\nKEYCLOAK_DEV_PASSWORD=%s\n' "$POSTGRES_PASSWORD" "$RABBITMQ_PASSWORD" "$KEYCLOAK_ADMIN_PASSWORD" "$KEYCLOAK_DEV_PASSWORD" >> .env.local
-          pnpm run e2e:real
+          set +e
+          out=$(pnpm run e2e:real 2>&1)
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::DIAG up rc=$rc tail[$(printf '%s' "$out" | tail -c 2500 | tr '\n\r\t' '   ')]"
+            for svc in db-migrate db-seed e2e api keycloak-bootstrap; do
+              svclog=$(docker compose --env-file .env.local --env-file .env.compose -f compose.yaml -f compose.local.yaml -f compose.e2e.yaml --profile local-seed logs --no-color --tail 40 "$svc" 2>&1)
+              echo "::error::DIAG svc[$svc] log[$(printf '%s' "$svclog" | tail -c 1500 | tr '\n\r\t' '   ')]"
+            done
+            exit "$rc"
+          fi
       - name: Collect real integration service logs
         if: failure()
         run: |
