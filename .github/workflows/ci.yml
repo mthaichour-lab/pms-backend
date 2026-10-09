@@ -15,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 24
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
       - name: Initialize CodeQL SAST
         uses: github/codeql-action/init@fddeee1a7ece751b577e409a89057319e3172939
         with:
@@ -54,16 +54,17 @@ jobs:
           RABBITMQ_PASSWORD: ci-rabbitmq-${{ github.run_id }}
           KEYCLOAK_ADMIN_PASSWORD: ci-keycloak-admin-${{ github.run_id }}
           KEYCLOAK_DEV_PASSWORD: ci-keycloak-user-${{ github.run_id }}
+          KEYCLOAK_ADMIN_CLIENT_SECRET: ci-keycloak-client-secret-${{ github.run_id }}
         run: |
           cp .env.local.example .env.local
           cp .env.compose.example .env.compose
-          printf '\nPOSTGRES_PASSWORD=%s\nRABBITMQ_PASSWORD=%s\nKEYCLOAK_ADMIN_PASSWORD=%s\nKEYCLOAK_DEV_PASSWORD=%s\n' "$POSTGRES_PASSWORD" "$RABBITMQ_PASSWORD" "$KEYCLOAK_ADMIN_PASSWORD" "$KEYCLOAK_DEV_PASSWORD" >> .env.local
+          printf '\nPOSTGRES_PASSWORD=%s\nRABBITMQ_PASSWORD=%s\nKEYCLOAK_ADMIN_PASSWORD=%s\nKEYCLOAK_DEV_PASSWORD=%s\nKEYCLOAK_ADMIN_CLIENT_SECRET=%s\n' "$POSTGRES_PASSWORD" "$RABBITMQ_PASSWORD" "$KEYCLOAK_ADMIN_PASSWORD" "$KEYCLOAK_DEV_PASSWORD" "$KEYCLOAK_ADMIN_CLIENT_SECRET" >> .env.local
           pnpm run e2e:real
       - name: Collect real integration service logs
         if: failure()
         run: |
           if [ -f .env.local ]; then
-            docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml -f compose.e2e.yaml --profile local-seed logs --no-color
+            docker compose --env-file .env.local --env-file .env.compose -f compose.yaml -f compose.local.yaml -f compose.e2e.yaml --profile local-seed logs --no-color
           fi
       - name: Tear down real integration stack
         if: always()

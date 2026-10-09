@@ -23,6 +23,11 @@ RUN pnpm run build
 FROM node:24-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
+# Every runtime entrypoint is a plain `node dist/...` command, so the bundled
+# package managers are dead weight whose transitive dependencies would ship
+# their vulnerabilities in the scanned image.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+  /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 RUN addgroup -S pms && adduser -S -G pms pms
 COPY --from=production-dependencies /workspace/node_modules ./node_modules
 COPY --from=build /workspace/dist ./dist
