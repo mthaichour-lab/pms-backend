@@ -11,13 +11,13 @@ export class PostgresRecognizedIncomeRepository implements RecognizedIncomeRepos
       await client.query('BEGIN');
       const inserted = await client.query<{ income_id: string }>(
         `INSERT INTO revenue.recognized_income
-          (income_id, source_system, source_reference, asset_id, pool_id, business_date,
-           currency_code, amount, cash_status, realization_status, income_type)
-         VALUES ($1::uuid, $2, $3, $4::uuid, $5, $6::date, $7, $8::numeric, $9, $10, $11)
+          (income_id, source_system, source_reference, asset_id, pool_id, gl_account_code, business_date,
+           maturity_date, currency_code, amount, cash_status, realization_status, income_type)
+         VALUES ($1::uuid, $2, $3, $4::uuid, $5, $6, $7::date, $8::date, $9, $10::numeric, $11, $12, $13)
          ON CONFLICT (source_system, source_reference, income_type) DO NOTHING
          RETURNING income_id::text`,
-        [value.incomeId, value.sourceSystem, value.sourceReference, value.assetId, value.poolId,
-          value.businessDate, value.currency, value.amount, value.cashStatus, value.realizationStatus, value.incomeType],
+        [value.incomeId, value.sourceSystem, value.sourceReference, value.assetId, value.poolId, value.glAccountCode,
+          value.businessDate, value.maturityDate ?? null, value.currency, value.amount, value.cashStatus, value.realizationStatus, value.incomeType],
       );
       if (inserted.rowCount === 1) {
         await emit(client, 'RecognizedIncome', value.incomeId, 'RecognizedIncomeImported', {
@@ -29,8 +29,8 @@ export class PostgresRecognizedIncomeRepository implements RecognizedIncomeRepos
         return 'CREATED';
       }
       const existing = await client.query<IncomeReplayRow>(
-        `SELECT income_id::text, source_system, source_reference, asset_id::text, pool_id,
-                business_date::text, currency_code, amount::text, cash_status,
+        `SELECT income_id::text, source_system, source_reference, asset_id::text, pool_id, gl_account_code,
+                business_date::text, maturity_date::text, currency_code, amount::text, cash_status,
                 realization_status, income_type
            FROM revenue.recognized_income
           WHERE source_system = $1 AND source_reference = $2 AND income_type = $3 FOR SHARE`,
@@ -82,21 +82,21 @@ export class PostgresRecognizedIncomeRepository implements RecognizedIncomeRepos
 
   async list(poolId: string, businessDate: string): Promise<readonly RecognizedIncome[]> {
     const result = await this.pool.query<IncomeReplayRow>(
-      `SELECT income_id::text, source_system, source_reference, asset_id::text, pool_id,
-              business_date::text, currency_code, amount::text, cash_status,
+      `SELECT income_id::text, source_system, source_reference, asset_id::text, pool_id, gl_account_code,
+              business_date::text, maturity_date::text, currency_code, amount::text, cash_status,
               realization_status, income_type FROM revenue.recognized_income
         WHERE pool_id = $1 AND business_date = $2::date ORDER BY source_system, source_reference`, [poolId, businessDate],
     );
     return result.rows.map(row => ({ incomeId: row.income_id, sourceSystem: row.source_system,
-      sourceReference: row.source_reference, assetId: row.asset_id, poolId: row.pool_id,
-      businessDate: row.business_date, currency: row.currency_code, amount: row.amount,
+      sourceReference: row.source_reference, assetId: row.asset_id, poolId: row.pool_id, glAccountCode: row.gl_account_code,
+      businessDate: row.business_date, ...(row.maturity_date ? { maturityDate: row.maturity_date } : {}), currency: row.currency_code, amount: row.amount,
       cashStatus: row.cash_status, realizationStatus: row.realization_status, incomeType: row.income_type }));
   }
 }
 
-interface IncomeReplayRow { income_id: string; source_system: string; source_reference: string; asset_id: string; pool_id: string; business_date: string; currency_code: string; amount: string; cash_status: RecognizedIncome['cashStatus']; realization_status: RecognizedIncome['realizationStatus']; income_type: string; }
+interface IncomeReplayRow { income_id: string; source_system: string; source_reference: string; asset_id: string; pool_id: string; gl_account_code: string; business_date: string; maturity_date: string | null; currency_code: string; amount: string; cash_status: RecognizedIncome['cashStatus']; realization_status: RecognizedIncome['realizationStatus']; income_type: string; }
 interface AdjustmentRow { adjustment_id: string; income_id: string; amount: string; reason: string; approval_id: string; business_date: string; actor_id: string; }
-function sameIncome(row: IncomeReplayRow, value: RecognizedIncome): boolean { return row.income_id === value.incomeId && row.source_system === value.sourceSystem && row.source_reference === value.sourceReference && row.asset_id === value.assetId && row.pool_id === value.poolId && row.business_date === value.businessDate && row.currency_code === value.currency && decimalEqual(row.amount, value.amount) && row.cash_status === value.cashStatus && row.realization_status === value.realizationStatus && row.income_type === value.incomeType; }
+function sameIncome(row: IncomeReplayRow, value: RecognizedIncome): boolean { return row.income_id === value.incomeId && row.source_system === value.sourceSystem && row.source_reference === value.sourceReference && row.asset_id === value.assetId && row.pool_id === value.poolId && row.gl_account_code === value.glAccountCode && row.business_date === value.businessDate && (row.maturity_date ?? undefined) === value.maturityDate && row.currency_code === value.currency && decimalEqual(row.amount, value.amount) && row.cash_status === value.cashStatus && row.realization_status === value.realizationStatus && row.income_type === value.incomeType; }
 function sameAdjustment(row: AdjustmentRow, value: IncomeAdjustment): boolean { return row.income_id === value.incomeId && decimalEqual(row.amount, value.amount) && row.reason === value.reason.trim() && row.approval_id === value.approvalId && row.business_date === value.businessDate && row.actor_id === value.actorId.trim(); }
 function decimalEqual(left: string, right: string): boolean { const normalize = (value: string) => { const [whole, fraction = ''] = value.split('.'); return `${whole}.${fraction.padEnd(12, '0')}`; }; return normalize(left) === normalize(right); }
 async function emit(client: PoolClient, aggregateType: string, aggregateId: string, eventType: string, payload: Record<string, unknown>): Promise<void> { await client.query(`INSERT INTO integration.outbox_event (event_id, aggregate_type, aggregate_id, event_type, schema_version, correlation_id, payload, occurred_at) VALUES (gen_random_uuid(), $1, $2, $3, 1, gen_random_uuid(), $4::jsonb, clock_timestamp())`, [aggregateType, aggregateId, eventType, JSON.stringify(payload)]); }

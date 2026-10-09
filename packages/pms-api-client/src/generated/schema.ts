@@ -78,6 +78,8 @@ export const operationIds = [
   "calculateDcr",
   "runStressScenario",
   "getTenorYieldCurve",
+  "getSubscriberYieldReport",
+  "getRevenueYieldReport",
   "generateHistoricalYieldForecast",
   "getProfitExplanation",
   "createPlanningScenario",
@@ -133,7 +135,9 @@ export type RecognizedIncome = {
   readonly sourceReference: string;
   readonly assetId: string;
   readonly poolId: string;
+  readonly glAccountCode: string;
   readonly businessDate: string;
+  readonly maturityDate?: string;
   readonly currency: string;
   readonly amount: string;
   readonly cashStatus: string;
@@ -836,6 +840,61 @@ export type TenorYieldCurve = {
   readonly closingId: string;
   readonly scope: string;
   readonly points: readonly TenorYieldCurvePoint[];
+};
+
+export type MaturityTenorBucket = string;
+
+export type SubscriberYieldRow = {
+  readonly accountId: string;
+  readonly capitalInvested: string;
+  readonly allocatedProfit: string;
+  readonly realizedRatePercent: string;
+  readonly distributedRatePercent: string;
+  readonly maturityDate: string;
+  readonly maturityBucket: MaturityTenorBucket;
+};
+
+export type SubscriberYieldBucket = {
+  readonly bucket: MaturityTenorBucket;
+  readonly subscriberCount: number;
+  readonly capitalInvested: string;
+  readonly allocatedProfit: string;
+  readonly averageRatePercent: string;
+};
+
+export type SubscriberYieldReport = {
+  readonly poolId: string;
+  readonly runId: string;
+  readonly businessDate: string;
+  readonly currency: string;
+  readonly subscribers: readonly SubscriberYieldRow[];
+  readonly byMaturityBucket: readonly SubscriberYieldBucket[];
+};
+
+export type RevenueYieldByGlAccount = {
+  readonly glAccountCode: string;
+  readonly receivedAmount: string;
+  readonly accruedAmount: string;
+  readonly receivedRatePercent: string;
+  readonly recognizedRatePercent: string;
+};
+
+export type RevenueYieldBucket = {
+  readonly bucket: MaturityTenorBucket;
+  readonly receivedAmount: string;
+  readonly accruedAmount: string;
+  readonly receivedRatePercent: string;
+  readonly recognizedRatePercent: string;
+};
+
+export type RevenueYieldReport = {
+  readonly poolId: string;
+  readonly currency: string;
+  readonly periodFrom: string;
+  readonly periodTo: string;
+  readonly capitalBase: string;
+  readonly byGlAccount: readonly RevenueYieldByGlAccount[];
+  readonly byMaturityBucket: readonly RevenueYieldBucket[];
 };
 
 export type HistoricalYieldForecastPoint = {

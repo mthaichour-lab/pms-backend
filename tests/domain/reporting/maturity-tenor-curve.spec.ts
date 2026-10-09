@@ -1,0 +1,6 @@
+import{describe,expect,it}from'vitest';import{buildMaturityTenorCurve,classifyMaturityBucket,MATURITY_TENOR_MONTH_BUCKETS}from'../../../src/modules/reporting/domain/maturity-tenor-curve.js';
+describe('maturity tenor curve',()=>{
+ it('exposes the ten requested month buckets plus an overflow bucket',()=>{expect(MATURITY_TENOR_MONTH_BUCKETS).toEqual(['1M','3M','6M','9M','12M','18M','24M','36M','48M','60M','60M+'])});
+ it('classifies a maturity into its month bucket',()=>{expect(classifyMaturityBucket('2026-08-30','2026-09-15')).toBe('1M');expect(classifyMaturityBucket('2026-08-30','2026-11-15')).toBe('3M');expect(classifyMaturityBucket('2026-08-30','2036-08-30')).toBe('60M+')});
+ it('derives yields across the eleven buckets from real observations',()=>{const curve=buildMaturityTenorCurve('2026-08-30',[{maturityDate:'2026-09-15',principal:'1000',profit:'25'},{maturityDate:'2031-08-29',principal:'2000',profit:'80'}],[{bucket:'1M',amount:'100'}]);expect(curve).toHaveLength(11);expect(curve[0]).toEqual({bucket:'1M',financingAmount:'1000.000000000000',placementAmount:'900.000000000000',gap:'100.000000000000',servedYieldPercent:'2.500000'});expect(curve[9]?.servedYieldPercent).toBe('4.000000')});
+});
