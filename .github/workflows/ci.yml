@@ -63,7 +63,7 @@ jobs:
         if: failure()
         run: |
           if [ -f .env.local ]; then
-            docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml -f compose.e2e.yaml --profile local-seed logs --no-color
+            docker compose --env-file .env.local --env-file .env.compose -f compose.yaml -f compose.local.yaml -f compose.e2e.yaml --profile local-seed logs --no-color
           fi
       - name: Tear down real integration stack
         if: always()

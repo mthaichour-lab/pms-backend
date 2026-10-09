@@ -61,7 +61,7 @@ Pour un environnement local autonome, copier aussi `.env.local.example` vers
 `.env.local`, remplacer ses mots de passe, puis lancer :
 
 ```sh
-docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml --profile local-seed up -d --build
+docker compose --env-file .env.local --env-file .env.compose -f compose.yaml -f compose.local.yaml --profile local-seed up -d --build
 ```
 
 Ce profil ajoute PostgreSQL, RabbitMQ et Keycloak sur l'interface loopback. Il
