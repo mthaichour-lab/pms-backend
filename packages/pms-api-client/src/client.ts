@@ -4,6 +4,8 @@ import type {
   PoolCharge,
   RecognizedIncome,
   IncomeAdjustment,
+  SubscriberYieldReport,
+  RevenueYieldReport,
   ApiStatus,
   ApprovedPoolOperation,
   ApprovePoolOperationCommand,
@@ -139,6 +141,13 @@ export function createPmsApiClient(options: PmsApiClientOptions) {
     async getTenorYieldCurve(input: { poolId: string; customerToken?: string; correlationId: string; traceparent?: string }): Promise<TenorYieldCurve> {
       const query = input.customerToken ? `?${new URLSearchParams({ customerToken: input.customerToken })}` : '';
       return request<TenorYieldCurve>(`/reporting/tenor-curves/${encodeURIComponent(input.poolId)}${query}`, { method: 'GET', correlationId: input.correlationId, traceparent: input.traceparent });
+    },
+    async getSubscriberYieldReport(input: { poolId: string; correlationId: string; traceparent?: string }): Promise<SubscriberYieldReport> {
+      return request<SubscriberYieldReport>(`/reporting/subscriber-yields/${encodeURIComponent(input.poolId)}`, { method: 'GET', correlationId: input.correlationId, traceparent: input.traceparent });
+    },
+    async getRevenueYieldReport(input: { poolId: string; periodFrom: string; periodTo: string; correlationId: string; traceparent?: string }): Promise<RevenueYieldReport> {
+      const query = new URLSearchParams({ periodFrom: input.periodFrom, periodTo: input.periodTo });
+      return request<RevenueYieldReport>(`/reporting/revenue-yields/${encodeURIComponent(input.poolId)}?${query}`, { method: 'GET', correlationId: input.correlationId, traceparent: input.traceparent });
     },
     async generateHistoricalYieldForecast(input: Omit<CommandInput<never>, 'command'> & { poolId: string }): Promise<HistoricalYieldForecast> {
       return request<HistoricalYieldForecast>(`/reporting/historical-yield-forecasts/${encodeURIComponent(input.poolId)}`, { method: 'POST', correlationId: input.correlationId, idempotencyKey: input.idempotencyKey, traceparent: input.traceparent, body: '{}' });

@@ -2832,6 +2832,34 @@
         }
       }
     },
+    "/reporting/subscriber-yields/{poolId}": {
+      "get": {
+        "operationId": "getSubscriberYieldReport",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "name": "poolId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{2,64}$" } }
+        ],
+        "responses": {
+          "200": { "description": "Taux de profit et de rendement par souscripteur, avec repartition par tranche de maturite", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubscriberYieldReport" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/reporting/revenue-yields/{poolId}": {
+      "get": {
+        "operationId": "getRevenueYieldReport",
+        "parameters": [
+          { "$ref": "#/components/parameters/CorrelationId" },
+          { "name": "poolId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{2,64}$" } },
+          { "name": "periodFrom", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+          { "name": "periodTo", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": {
+          "200": { "description": "Taux de rendement et de profit des revenus recus par compte GL et par tranche de maturite", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RevenueYieldReport" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
     "/reporting/historical-yield-forecasts/{poolId}": {
       "post": {
         "operationId": "generateHistoricalYieldForecast",
@@ -3267,6 +3295,7 @@
           "sourceReference",
           "assetId",
           "poolId",
+          "glAccountCode",
           "businessDate",
           "currency",
           "amount",
@@ -3292,7 +3321,15 @@
           "poolId": {
             "type": "string"
           },
+          "glAccountCode": {
+            "type": "string",
+            "pattern": "^[A-Z0-9a-f:_-]{2,128}$"
+          },
           "businessDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "maturityDate": {
             "type": "string",
             "format": "date"
           },
@@ -5684,6 +5721,87 @@
           "closingId": { "type": "string", "format": "uuid" },
           "scope": { "type": "string", "enum": ["POOL", "CUSTOMER"] },
           "points": { "type": "array", "minItems": 6, "maxItems": 6, "items": { "$ref": "#/components/schemas/TenorYieldCurvePoint" } }
+        },
+        "additionalProperties": false
+      },
+      "MaturityTenorBucket": {
+        "type": "string",
+        "enum": ["1M", "3M", "6M", "9M", "12M", "18M", "24M", "36M", "48M", "60M", "60M+"]
+      },
+      "SubscriberYieldRow": {
+        "type": "object",
+        "required": ["accountId", "capitalInvested", "allocatedProfit", "realizedRatePercent", "distributedRatePercent", "maturityDate", "maturityBucket"],
+        "properties": {
+          "accountId": { "type": "string", "format": "uuid" },
+          "capitalInvested": { "type": "string" },
+          "allocatedProfit": { "type": "string" },
+          "realizedRatePercent": { "type": "string" },
+          "distributedRatePercent": { "type": "string" },
+          "maturityDate": { "type": "string", "format": "date" },
+          "maturityBucket": { "$ref": "#/components/schemas/MaturityTenorBucket" }
+        },
+        "additionalProperties": false
+      },
+      "SubscriberYieldBucket": {
+        "type": "object",
+        "required": ["bucket", "subscriberCount", "capitalInvested", "allocatedProfit", "averageRatePercent"],
+        "properties": {
+          "bucket": { "$ref": "#/components/schemas/MaturityTenorBucket" },
+          "subscriberCount": { "type": "integer", "minimum": 0 },
+          "capitalInvested": { "type": "string" },
+          "allocatedProfit": { "type": "string" },
+          "averageRatePercent": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "SubscriberYieldReport": {
+        "type": "object",
+        "required": ["poolId", "runId", "businessDate", "currency", "subscribers", "byMaturityBucket"],
+        "properties": {
+          "poolId": { "type": "string" },
+          "runId": { "type": "string", "format": "uuid" },
+          "businessDate": { "type": "string", "format": "date" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "subscribers": { "type": "array", "items": { "$ref": "#/components/schemas/SubscriberYieldRow" } },
+          "byMaturityBucket": { "type": "array", "minItems": 11, "maxItems": 11, "items": { "$ref": "#/components/schemas/SubscriberYieldBucket" } }
+        },
+        "additionalProperties": false
+      },
+      "RevenueYieldByGlAccount": {
+        "type": "object",
+        "required": ["glAccountCode", "receivedAmount", "accruedAmount", "receivedRatePercent", "recognizedRatePercent"],
+        "properties": {
+          "glAccountCode": { "type": "string", "pattern": "^[A-Z0-9a-f:_-]{2,128}$" },
+          "receivedAmount": { "type": "string" },
+          "accruedAmount": { "type": "string" },
+          "receivedRatePercent": { "type": "string" },
+          "recognizedRatePercent": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "RevenueYieldBucket": {
+        "type": "object",
+        "required": ["bucket", "receivedAmount", "accruedAmount", "receivedRatePercent", "recognizedRatePercent"],
+        "properties": {
+          "bucket": { "$ref": "#/components/schemas/MaturityTenorBucket" },
+          "receivedAmount": { "type": "string" },
+          "accruedAmount": { "type": "string" },
+          "receivedRatePercent": { "type": "string" },
+          "recognizedRatePercent": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "RevenueYieldReport": {
+        "type": "object",
+        "required": ["poolId", "currency", "periodFrom", "periodTo", "capitalBase", "byGlAccount", "byMaturityBucket"],
+        "properties": {
+          "poolId": { "type": "string" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "periodFrom": { "type": "string", "format": "date" },
+          "periodTo": { "type": "string", "format": "date" },
+          "capitalBase": { "type": "string" },
+          "byGlAccount": { "type": "array", "items": { "$ref": "#/components/schemas/RevenueYieldByGlAccount" } },
+          "byMaturityBucket": { "type": "array", "minItems": 11, "maxItems": 11, "items": { "$ref": "#/components/schemas/RevenueYieldBucket" } }
         },
         "additionalProperties": false
       },
